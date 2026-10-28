@@ -195,7 +195,7 @@ function render() {
   const r = room;
   if (!r) return;
   $('room-title').textContent = t('roomTitle', { code: r.roomId.slice(0, 6) });
-  $('room-meta').textContent = t('roomMeta', { n: r.peers.size + 1 });
+  $('room-meta').textContent = r.reconnecting ? t('reconnecting') : t('roomMeta', { n: r.peers.size + 1 });
 
   micBtn.disabled = !r.mic;
   micBtn.textContent = !r.mic ? t('noMic') : r.muted ? t('micOff') : t('micOn');

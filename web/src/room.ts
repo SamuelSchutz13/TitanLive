@@ -10,6 +10,7 @@ export interface Peer {
   polite: boolean;
   makingOffer: boolean;
   ignoreOffer: boolean;
+  settingAnswer: boolean;
 }
 
 export interface ChatMessage {
@@ -28,6 +29,7 @@ export const hasVideo = (s: MediaStream) => s.getVideoTracks().some((t) => t.rea
 export class Room {
   readonly peers = new Map<string, Peer>();
   myId = '';
+  reconnecting = false;
   private iceServers: RTCIceServer[] = [];
   mic: MediaStream | null = null;
   screen: MediaStream | null = null;
@@ -44,7 +46,7 @@ export class Room {
   constructor(roomId: string, name: string) {
     this.roomId = roomId;
     this.name = name;
-    this.socket = io(SERVER, { transports: ['websocket'], reconnection: false });
+    this.socket = io(SERVER, { transports: ['websocket'], reconnectionAttempts: 10 });
     this.socket.on('peer-joined', ({ id, name }: { id: string; name: string }) => {
       this.addPeer(id, name);
       this.onChange();
@@ -56,15 +58,30 @@ export class Room {
     });
     this.socket.on('signal', ({ from, data }: { from: string; data: Signal }) => void this.handleSignal(from, data));
     this.socket.on('chat', (m: ChatMessage) => this.onChat(m));
+    // A dropped connection rejoins the same room under a new id; peers see us leave and come back.
     this.socket.on('disconnect', (reason) => {
-      if (reason !== 'io client disconnect') this.onError('disconnected');
+      if (reason === 'io client disconnect') return;
+      this.closePeers();
+      this.reconnecting = true;
+      if (reason === 'io server disconnect') this.socket.connect();
+      this.onChange();
     });
-    this.socket.on('connect_error', () => this.onError('disconnected'));
+    this.socket.io.on('reconnect', () => {
+      this.enter()
+        .then(() => (this.reconnecting = false))
+        .catch((e: Error) => this.onError(e.message))
+        .finally(() => this.onChange());
+    });
+    this.socket.io.on('reconnect_failed', () => this.onError('disconnected'));
   }
 
   async join() {
     // Mic is optional: without it you still watch and hear.
     this.mic = await navigator.mediaDevices.getUserMedia({ audio: true }).catch(() => null);
+    await this.enter();
+  }
+
+  private async enter() {
     const ack = (await this.socket
       .timeout(8000)
       .emitWithAck('join', { roomId: this.roomId, name: this.name })
@@ -112,9 +129,14 @@ export class Room {
   leave() {
     this.stopShare();
     this.mic?.getTracks().forEach((t) => t.stop());
+    this.closePeers();
+    this.socket.disconnect();
+  }
+
+  private closePeers() {
     for (const p of this.peers.values()) p.pc.close();
     this.peers.clear();
-    this.socket.disconnect();
+    this.screenSenders.clear();
   }
 
   private send(to: string, data: Signal) {
@@ -134,7 +156,7 @@ export class Room {
   private addPeer(id: string, name: string) {
     if (this.peers.has(id)) return this.peers.get(id)!;
     const pc = new RTCPeerConnection({ iceServers: this.iceServers });
-    const peer: Peer = { id, name, pc, streams: new Map(), polite: this.myId < id, makingOffer: false, ignoreOffer: false };
+    const peer: Peer = { id, name, pc, streams: new Map(), polite: this.myId < id, makingOffer: false, ignoreOffer: false, settingAnswer: false };
     this.peers.set(id, peer);
 
     pc.onnegotiationneeded = async () => {
@@ -147,6 +169,7 @@ export class Room {
       }
     };
     pc.onicecandidate = ({ candidate }) => candidate && this.send(id, { candidate: candidate.toJSON() });
+    pc.oniceconnectionstatechange = () => pc.iceConnectionState === 'failed' && pc.restartIce();
     pc.ontrack = ({ track, streams: [stream] }) => {
       if (!stream) return;
       peer.streams.set(stream.id, stream);
@@ -171,10 +194,13 @@ export class Room {
     const { pc } = peer;
     try {
       if (description) {
-        const collision = description.type === 'offer' && (peer.makingOffer || pc.signalingState !== 'stable');
+        // An offer that lands while our answer is still being applied is not a collision (spec's isSettingRemoteAnswerPending).
+        const ready = !peer.makingOffer && (pc.signalingState === 'stable' || peer.settingAnswer);
+        const collision = description.type === 'offer' && !ready;
         peer.ignoreOffer = !peer.polite && collision;
         if (peer.ignoreOffer) return;
-        await pc.setRemoteDescription(description);
+        peer.settingAnswer = description.type === 'answer';
+        await pc.setRemoteDescription(description).finally(() => (peer.settingAnswer = false));
         if (description.type === 'offer') {
           await pc.setLocalDescription();
           this.send(from, { description: pc.localDescription!.toJSON() });

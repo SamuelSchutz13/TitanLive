@@ -2,6 +2,8 @@ import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
   testDir: 'e2e',
+  // Each test runs 2-3 browsers with fake media; more workers starve ICE on one machine.
+  workers: 2,
   use: {
     baseURL: 'http://localhost:5173',
     locale: 'pt-BR',
