@@ -7,6 +7,7 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
+import { iceServers } from './ice';
 
 const ROOM_ID = /^[A-Za-z0-9_-]{6,64}$/;
 // shortcut: P2P mesh, the sharer uploads one stream per viewer; move to an SFU (mediasoup/LiveKit) for bigger rooms.
@@ -46,7 +47,7 @@ export class RoomsGateway implements OnGatewayDisconnect {
     socket.data = { roomId, name: nick };
     void socket.join(roomId);
     socket.to(roomId).emit('peer-joined', { id: socket.id, name: nick });
-    return { id: socket.id, peers };
+    return { id: socket.id, peers, iceServers: iceServers() };
   }
 
   // Relays WebRTC offer/answer/ICE, only between peers of the same room.
