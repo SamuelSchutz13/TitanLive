@@ -29,7 +29,8 @@ let room: Room | null = null;
 /* ---------- settings: theme, language, noise suppression ---------- */
 
 const root = document.documentElement;
-const settings = $<HTMLDialogElement>('settings');
+const settings = $('settings');
+const settingsBtn = $('settings-btn');
 const noiseInput = $<HTMLInputElement>('noise');
 
 for (const el of document.querySelectorAll<HTMLElement>('[data-icon]')) {
@@ -54,10 +55,18 @@ function applyLang(lang: Lang) {
   if (room) render();
 }
 
-$('settings-btn').addEventListener('click', () => settings.showModal());
-$('settings-close').addEventListener('click', () => settings.close());
-// A click on the backdrop lands on the dialog itself.
-settings.addEventListener('click', (e) => e.target === settings && settings.close());
+$('settings-close').addEventListener('click', () => {
+  settings.hidePopover();
+  settingsBtn.focus();
+});
+settings.addEventListener('toggle', (e) => {
+  settingsBtn.setAttribute('aria-expanded', String((e as ToggleEvent).newState === 'open'));
+  if ((e as ToggleEvent).newState !== 'open') return;
+  // Popovers open in the top layer; pin this one under the gear, right-aligned.
+  const r = settingsBtn.getBoundingClientRect();
+  settings.style.top = `${r.bottom + 8}px`;
+  settings.style.right = `${Math.max(16, document.documentElement.clientWidth - r.right)}px`;
+});
 settings.addEventListener('click', (e) => {
   const btn = (e.target as HTMLElement).closest<HTMLElement>('[data-theme-choice], [data-lang]');
   if (btn?.dataset.themeChoice) {

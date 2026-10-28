@@ -106,7 +106,7 @@ test('settings: language, theme and noise suppression', async ({ page }) => {
   await expect(noise).toBeChecked();
   await noise.uncheck();
   await page.getByRole('button', { name: 'Close' }).click();
-  await expect(page.locator('#settings')).toHaveJSProperty('open', false);
+  await expect(page.locator('#settings')).toBeHidden();
 
   // All three survive a reload.
   await page.reload();

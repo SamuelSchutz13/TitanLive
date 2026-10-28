@@ -455,9 +455,13 @@ select {
 }
 .stage-self {
   display: none;
+  width: 100%;
+  height: 100%;
+  grid-template-rows: minmax(0, 1fr) auto;
   justify-items: center;
-  gap: 12px;
-  padding: var(--pad);
+  gap: 10px;
+  /* Room for the label above and the dock below. */
+  padding: 52px 24px 84px;
   text-align: center;
   text-wrap: balance;
 }
@@ -467,12 +471,11 @@ select {
 .stage-self p {
   max-width: 40ch;
 }
+/* Fills the stage; contain keeps the whole screen in view at any aspect ratio. */
 #self-preview {
-  width: min(420px, 70%);
-  aspect-ratio: 16 / 9;
-  border-radius: 12px;
-  border: 1px solid var(--rule);
-  background: #000;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
   object-fit: contain;
 }
 .stage.is-live .stage-empty {
@@ -533,32 +536,87 @@ select {
 .room-status.error {
   min-height: 0;
 }
+/* Settings: a card that drops from the gear, the one other place besides menus with a shadow. */
 .settings {
-  width: min(420px, calc(100% - 32px));
-  padding: var(--pad);
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  width: min(380px, calc(100vw - 32px));
+  padding: 16px 18px 6px;
   border: 1px solid var(--rule);
-  border-radius: var(--radius-card);
+  border-radius: 18px;
   background: var(--surface);
   color: var(--text);
+  box-shadow:
+    0 18px 48px rgb(0 0 0 / 0.28),
+    0 2px 6px rgb(0 0 0 / 0.12);
+  opacity: 0;
+  transform: translateY(-6px) scale(0.98);
+  transform-origin: top right;
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease,
+    overlay 140ms allow-discrete,
+    display 140ms allow-discrete;
 }
-.settings::backdrop {
-  background: rgb(0 0 0 / 0.5);
+.settings:popover-open {
+  opacity: 1;
+  transform: none;
+}
+@starting-style {
+  .settings:popover-open {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
 }
 .settings-head {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.settings-head h2 {
+  flex: 1;
+}
+.settings-badge {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+.settings-head .icon-btn {
+  width: 32px;
+  height: 32px;
+  background: transparent;
 }
 .setting {
   padding: 14px 0;
   border-top: 1px solid var(--rule);
 }
 .setting h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin: 0 0 10px;
   font-size: 13px;
   font-weight: 500;
   color: var(--muted);
+}
+.setting h3 .icon,
+.switch-icon .icon {
+  width: 15px;
+  height: 15px;
+}
+.switch-icon {
+  align-self: start;
+  margin-top: 2px;
+  color: var(--muted);
+}
+.switch-text {
+  flex: 1;
 }
 /* Segmented control: the pressed option is filled. */
 .seg {
@@ -570,11 +628,13 @@ select {
 }
 .seg button {
   flex: 1;
+  min-width: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 0 10px;
+  gap: 6px;
+  padding: 0 8px;
+  font-size: 13px;
   background: transparent;
   font-weight: 500;
 }
