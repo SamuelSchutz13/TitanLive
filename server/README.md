@@ -8,6 +8,8 @@ npm run start:dev      # PORT=3000, WEB_ORIGIN=* por padrão
 npm run test:e2e
 ```
 
+Swagger em http://localhost:3000/docs (`GET /health` + resumo dos eventos Socket.IO).
+
 ## Eventos
 
 | Cliente → servidor | Payload | Ack |
