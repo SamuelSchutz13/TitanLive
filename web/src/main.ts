@@ -1,5 +1,6 @@
 import './style.css';
 import { detectLang, dicts, getLang, setLang, t, type Key, type Lang } from './i18n';
+import { flags, icons } from './icons';
 import { hasVideo, Room, type ChatMessage } from './room';
 
 const ROOM_ID = /^[A-Za-z0-9_-]{6,64}$/;
@@ -29,16 +30,29 @@ let room: Room | null = null;
 
 const root = document.documentElement;
 const themeBtn = $<HTMLButtonElement>('theme');
-const langSel = $<HTMLSelectElement>('lang');
+const langBtn = $<HTMLButtonElement>('lang-btn');
+const langMenu = $('lang-menu');
+
+for (const el of document.querySelectorAll<HTMLElement>('[data-icon]')) {
+  el.innerHTML = icons[el.dataset.icon as keyof typeof icons];
+}
+for (const b of langMenu.querySelectorAll<HTMLButtonElement>('[data-lang]')) {
+  b.insertAdjacentHTML('afterbegin', flags[b.dataset.lang as Lang]);
+}
 
 function applyTheme(theme: string) {
   root.dataset.theme = theme;
-  themeBtn.dataset.i18n = theme === 'dark' ? 'toLight' : 'toDark';
-  themeBtn.textContent = t(themeBtn.dataset.i18n as Key);
+  // The icon shows the theme you switch to.
+  themeBtn.dataset.i18nAria = theme === 'dark' ? 'toLight' : 'toDark';
+  themeBtn.innerHTML = theme === 'dark' ? icons.sun : icons.moon;
+  setLang(getLang());
 }
 
 function applyLang(lang: Lang) {
-  langSel.value = lang;
+  langBtn.innerHTML = flags[lang];
+  for (const b of langMenu.querySelectorAll<HTMLButtonElement>('[data-lang]')) {
+    b.setAttribute('aria-current', String(b.dataset.lang === lang));
+  }
   setLang(lang);
   if (room) render();
 }
@@ -48,9 +62,20 @@ themeBtn.addEventListener('click', () => {
   store.set('theme', next);
   applyTheme(next);
 });
-langSel.addEventListener('change', () => {
-  store.set('lang', langSel.value);
-  applyLang(langSel.value as Lang);
+langMenu.addEventListener('toggle', (e) => {
+  if ((e as ToggleEvent).newState !== 'open') return;
+  // Popovers open in the top layer; pin this one under its button, right-aligned.
+  const r = langBtn.getBoundingClientRect();
+  langMenu.style.top = `${r.bottom + 6}px`;
+  langMenu.style.right = `${document.documentElement.clientWidth - r.right}px`;
+});
+langMenu.addEventListener('click', (e) => {
+  const lang = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-lang]')?.dataset.lang as Lang | undefined;
+  if (!lang) return;
+  store.set('lang', lang);
+  applyLang(lang);
+  langMenu.hidePopover();
+  langBtn.focus();
 });
 
 applyTheme(store.get('theme') ?? (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'));
@@ -172,14 +197,20 @@ chatForm.addEventListener('submit', async (e) => {
 
 const hue = (id: string) => [...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
 
-function personRow(id: string, name: string, meta: string[]) {
-  const li = document.createElement('li');
-  li.dataset.id = id;
+// Same initial and tint for a person in the list and in the chat.
+function avatarFor(hueKey: string, name: string) {
   const avatar = document.createElement('span');
   avatar.className = 'avatar';
-  avatar.style.setProperty('--h', String(hue(id)));
+  avatar.style.setProperty('--h', String(hue(hueKey)));
   avatar.textContent = name.slice(0, 1).toUpperCase();
   avatar.setAttribute('aria-hidden', 'true');
+  return avatar;
+}
+
+function personRow(id: string, name: string, meta: string[], hueKey = id) {
+  const li = document.createElement('li');
+  li.dataset.id = id;
+  const avatar = avatarFor(hueKey, name);
   const label = document.createElement('span');
   label.className = 'who';
   label.textContent = name;
@@ -209,7 +240,7 @@ function render() {
   const me = [t('you')];
   if (r.mic && r.muted) me.push(t('muted'));
   if (r.screen) me.push(t('sharing'));
-  const rows = [personRow('me', r.name, me)];
+  const rows = [personRow('me', r.name, me, r.myId)];
   for (const p of r.peers.values()) {
     rows.push(personRow(p.id, p.name, remoteScreens.some((s) => s.peer === p) ? [t('sharing')] : []));
   }
@@ -261,7 +292,9 @@ function renderChat() {
       head.append(who, time);
       const body = document.createElement('p');
       body.textContent = m.text;
-      li.append(head, body);
+      const content = document.createElement('div');
+      content.append(head, body);
+      li.append(avatarFor(m.from, m.name), content);
       return li;
     }),
   );

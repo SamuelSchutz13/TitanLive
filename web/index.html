@@ -17,13 +17,13 @@
           TitanLive
         </a>
         <div class="tools">
-          <label class="sr-only" for="lang" data-i18n="language">Idioma</label>
-          <select id="lang">
-            <option value="pt">Português</option>
-            <option value="en">English</option>
-            <option value="es">Español</option>
-          </select>
-          <button id="theme" class="ghost" type="button"></button>
+          <button id="lang-btn" class="icon-btn" type="button" popovertarget="lang-menu" data-i18n-aria="language"></button>
+          <div id="lang-menu" class="menu" popover>
+            <button type="button" data-lang="pt">Português</button>
+            <button type="button" data-lang="en">English</button>
+            <button type="button" data-lang="es">Español</button>
+          </div>
+          <button id="theme" class="icon-btn" type="button"></button>
         </div>
       </div>
     </header>
@@ -106,7 +106,7 @@
               <form id="chat-form" class="joined">
                 <label for="msg" class="sr-only" data-i18n="msgLabel"></label>
                 <input id="msg" maxlength="500" autocomplete="off" />
-                <button class="secondary" data-i18n="send"></button>
+                <button class="icon-btn" data-i18n-aria="send" data-icon="send"></button>
               </form>
             </div>
           </aside>

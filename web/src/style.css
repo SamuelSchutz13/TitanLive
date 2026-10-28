@@ -193,6 +193,58 @@ button:disabled {
 .danger:hover {
   background: var(--raised);
 }
+.icon-btn {
+  width: var(--control-height);
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  background: var(--raised);
+}
+.icon-btn:hover:not(:disabled) {
+  background: var(--control);
+}
+.icon {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.flag {
+  width: 20px;
+  height: 14px;
+  border-radius: 2px;
+  flex: none;
+}
+/* Floats above the page: the one place a shadow belongs. */
+.menu {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  padding: 6px;
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.18);
+}
+.menu button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-width: 160px;
+  background: transparent;
+  border-radius: 8px;
+  font-weight: 400;
+}
+.menu button:hover,
+.menu button[aria-current='true'] {
+  background: var(--raised);
+}
 input,
 select {
   height: var(--control-height);
@@ -450,6 +502,17 @@ select {
 .messages:empty {
   display: none;
 }
+.messages li {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 10px;
+  align-items: start;
+}
+.messages .avatar {
+  width: 28px;
+  height: 28px;
+  font-size: 12px;
+}
 .msg-head {
   display: flex;
   gap: 8px;
@@ -492,6 +555,9 @@ select {
   input,
   select {
     height: 44px;
+  }
+  .icon-btn {
+    width: 44px;
   }
   .actions {
     width: 100%;

@@ -54,9 +54,12 @@ test('two people join, chat and watch a shared screen', async ({ browser }) => {
 
 test('switches language and theme', async ({ page }) => {
   await page.goto('/');
-  await page.getByLabel('Idioma').selectOption('es');
+  await page.getByRole('button', { name: 'Idioma' }).click();
+  await page.getByRole('button', { name: 'Español' }).click();
   await expect(page.locator('#home-title')).toHaveText('Salas privadas, sin registro');
-  await page.getByLabel('Idioma').selectOption('en');
+  await page.getByRole('button', { name: 'Idioma' }).click();
+  await page.getByRole('button', { name: 'English' }).click();
+  await expect(page.getByRole('button', { name: 'Language' })).toBeVisible();
   await expect(page.locator('#home-title')).toHaveText('Private rooms, no sign-up');
 
   const theme = () => page.evaluate(() => document.documentElement.dataset.theme);
