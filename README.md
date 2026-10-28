@@ -34,12 +34,12 @@
 - **Screen sharing**: one person shares, everyone watches on the big stage.
 - **Cameras**: turn yours on and everyone shows up as a tile. Tiles fill the stage, or line up beside a shared screen.
 - **Reactions**: 👍 😂 ❤️ 👏 🎉 😮 float up over the stage with the sender's name.
-- **Voice**: mic on/off with one button, and a gold ring shows who is speaking. Joined without a mic? Turn it on later. Noise suppression is on, and **music mode** turns it off when you want to play something.
+- **Voice**: mic on/off with one button, and a gold ring shows who is speaking. Joined without a mic? Turn it on later. Noise suppression is on by default.
 - **Chat with media**: text, images, videos and audio files (up to 8 MB each), plus voice notes recorded right in the chat.
 - **One dock for the call**: mic, screen sharing and leave sit together over the stage, and copy link sits next to the room name.
 - **Who is here**: avatars of everyone in the room next to the counter, and status capsules for *you*, *muted* and *sharing*.
 - **Reconnects by itself** when the connection drops.
-- **English, Português and Español**, dark and light themes.
+- **Settings** (⚙): light or dark theme, English, Português or Español, and noise suppression (turn it off to play music). All remembered.
 - **TURN ready**: a `docker-compose.yml` with coturn for people behind strict NAT.
 
 ## Screenshots

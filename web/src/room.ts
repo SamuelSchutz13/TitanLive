@@ -34,7 +34,7 @@ type JoinAck = { id: string; peers: { id: string; name: string; muted: boolean }
 
 export const SERVER_URL = SERVER;
 // Asked for explicitly: some browsers default these off for getUserMedia.
-const VOICE = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
+const voice = (on: boolean) => ({ echoCancellation: on, noiseSuppression: on, autoGainControl: on });
 
 export const hasVideo = (s: MediaStream) => s.getVideoTracks().some((t) => t.readyState === 'live' && !t.muted);
 
@@ -102,7 +102,7 @@ export class Room {
 
   async join() {
     // Mic is optional: without it you still watch and hear.
-    this.mic = await navigator.mediaDevices.getUserMedia({ audio: VOICE }).catch(() => null);
+    this.mic = await navigator.mediaDevices.getUserMedia({ audio: voice(this.voiceProcessing) }).catch(() => null);
     await this.enter();
   }
 
@@ -120,7 +120,7 @@ export class Room {
 
   // For people who joined without a mic (denied or none): ask again and add it to the live call.
   async enableMic() {
-    const mic = await navigator.mediaDevices.getUserMedia({ audio: VOICE });
+    const mic = await navigator.mediaDevices.getUserMedia({ audio: voice(this.voiceProcessing) });
     this.mic = mic;
     for (const p of this.peers.values()) mic.getTracks().forEach((t) => p.pc.addTrack(t, mic));
     this.socket.emit('mute', { muted: false });
@@ -173,11 +173,11 @@ export class Room {
     this.onChange();
   }
 
-  // Music mode turns the browser's voice processing off so instruments aren't squashed.
+  // Off turns the browser's voice processing off so music and instruments aren't squashed.
   // Kept here: getSettings() doesn't reliably reflect these constraints in every browser.
   voiceProcessing = true;
   async setVoiceProcessing(on: boolean) {
-    await this.mic?.getAudioTracks()[0]?.applyConstraints({ echoCancellation: on, noiseSuppression: on, autoGainControl: on });
+    await this.mic?.getAudioTracks()[0]?.applyConstraints(voice(on));
     this.voiceProcessing = on;
     this.onChange();
   }

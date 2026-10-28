@@ -17,13 +17,7 @@
           TitanLive
         </a>
         <div class="tools">
-          <button id="lang-btn" class="icon-btn" type="button" popovertarget="lang-menu" data-i18n-aria="language"></button>
-          <div id="lang-menu" class="menu" popover>
-            <button type="button" data-lang="pt">Português</button>
-            <button type="button" data-lang="en">English</button>
-            <button type="button" data-lang="es">Español</button>
-          </div>
-          <button id="theme" class="icon-btn" type="button"></button>
+          <button id="settings-btn" class="icon-btn" type="button" popovertarget="settings" data-i18n-aria="settings" data-icon="gear"></button>
         </div>
       </div>
     </header>
@@ -88,11 +82,13 @@
             <p id="stage-label" class="stage-label"></p>
             <p id="stage-speaking" class="stage-speaking" hidden><span id="stage-speaking-icon" aria-hidden="true"></span><span id="stage-speaking-names"></span></p>
             <p class="stage-empty muted" data-i18n="stageEmpty"></p>
-            <p class="stage-self muted" data-i18n="selfSharing"></p>
+            <div class="stage-self">
+              <video id="self-preview" autoplay playsinline muted></video>
+              <p class="muted" data-i18n="selfSharing"></p>
+            </div>
             <!-- All call controls in one dock over the stage. -->
             <div class="dock">
               <button id="mic" class="icon-btn"></button>
-              <button id="voice" class="icon-btn" data-icon="music"></button>
               <button id="camera" class="icon-btn"></button>
               <button id="share" class="icon-btn" data-icon="screen"></button>
               <button id="react-btn" class="icon-btn" popovertarget="react-menu" data-i18n-aria="react" data-icon="smile"></button>
@@ -138,6 +134,37 @@
       <button type="button" data-emoji="😮">😮</button>
     </div>
     <p id="announcer" class="sr-only" aria-live="polite"></p>
+    <!-- A popover under the gear: light-dismiss and Esc come from the browser. -->
+    <div id="settings" class="settings" popover role="dialog" aria-labelledby="settings-title">
+      <div class="settings-head">
+        <span class="settings-badge" data-icon="gear"></span>
+        <h2 id="settings-title" data-i18n="settings"></h2>
+        <button id="settings-close" class="icon-btn" type="button" data-i18n-aria="close" data-icon="close"></button>
+      </div>
+      <div class="setting" role="group" aria-labelledby="theme-title">
+        <h3 id="theme-title"><span data-icon="sun"></span><span data-i18n="theme"></span></h3>
+        <div class="seg">
+          <button type="button" data-theme-choice="light"><span data-icon="sun"></span><span data-i18n="themeLight"></span></button>
+          <button type="button" data-theme-choice="dark"><span data-icon="moon"></span><span data-i18n="themeDark"></span></button>
+        </div>
+      </div>
+      <div class="setting" role="group" aria-labelledby="lang-title">
+        <h3 id="lang-title"><span data-icon="globe"></span><span data-i18n="language"></span></h3>
+        <div class="seg">
+          <button type="button" data-lang="pt">Português</button>
+          <button type="button" data-lang="en">English</button>
+          <button type="button" data-lang="es">Español</button>
+        </div>
+      </div>
+      <label class="setting switch-row">
+        <span class="switch-icon" data-icon="mic"></span>
+        <span class="switch-text">
+          <span class="switch-title" data-i18n="noise"></span>
+          <span class="switch-hint" data-i18n="noiseHint"></span>
+        </span>
+        <input id="noise" type="checkbox" role="switch" />
+      </label>
+    </div>
     <dialog id="lightbox" class="lightbox"><img alt="" /></dialog>
     <script type="module" src="/src/main.ts"></script>
   </body>

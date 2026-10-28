@@ -34,12 +34,12 @@
 - **Compartir pantalla**: una persona comparte y todos miran en el escenario.
 - **Cámaras**: enciende la tuya y todos aparecen en recuadros. Llenan el escenario o se alinean junto a la pantalla compartida.
 - **Reacciones**: 👍 😂 ❤️ 👏 🎉 😮 suben por el escenario con el nombre de quien las envió.
-- **Voz**: activa o silencia el micrófono con un botón, y un anillo dorado muestra quién habla. ¿Entraste sin micrófono? Actívalo después. La reducción de ruido viene activada, y el **modo música** la apaga cuando quieres tocar algo.
+- **Voz**: activa o silencia el micrófono con un botón, y un anillo dorado muestra quién habla. ¿Entraste sin micrófono? Actívalo después. La reducción de ruido viene activada.
 - **Chat con multimedia**: texto, imágenes, videos y archivos de audio (hasta 8 MB cada uno), y notas de voz grabadas en el propio chat.
 - **Controles en un solo lugar**: micrófono, compartir pantalla y salir van juntos en una barra sobre el escenario, y copiar enlace queda junto al nombre de la sala.
 - **Quién está aquí**: los avatares de todos junto al contador y cápsulas de estado para *tú*, *silenciado* y *compartiendo*.
 - **Se reconecta solo** cuando se cae la conexión.
-- **Español, English y Português**, tema oscuro y claro.
+- **Configuración** (⚙): tema claro u oscuro, Español, English o Português, y reducción de ruido (desactívala para tocar música). Todo queda guardado.
 - **Listo para TURN**: un `docker-compose.yml` con coturn para quien está detrás de un NAT restrictivo.
 
 ## Capturas
