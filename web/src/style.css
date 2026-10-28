@@ -122,14 +122,7 @@ h2 {
 .mark {
   width: 22px;
   height: 22px;
-}
-.mark circle {
-  fill: var(--accent);
-}
-.mark path {
-  stroke: var(--ground);
-  stroke-opacity: 0.45;
-  stroke-width: 2.2;
+  color: var(--accent);
 }
 .tools {
   display: flex;
@@ -346,13 +339,8 @@ select {
 .preview-planet {
   width: 34%;
 }
-.preview-planet circle {
-  fill: var(--accent);
-}
-.preview-planet path {
-  stroke: var(--surface);
-  stroke-opacity: 0.5;
-  stroke-width: 1.4;
+.preview-planet {
+  color: var(--accent);
 }
 .people.preview-people {
   display: flex;
