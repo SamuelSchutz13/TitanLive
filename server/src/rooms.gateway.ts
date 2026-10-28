@@ -13,8 +13,11 @@ const ROOM_ID = /^[A-Za-z0-9_-]{6,64}$/;
 const MAX_PEERS = 10;
 const MAX_NAME = 32;
 const MAX_CHAT = 500;
+// Sliding window per socket: at most CHAT_BURST messages every CHAT_WINDOW_MS.
+const CHAT_BURST = 5;
+const CHAT_WINDOW_MS = 5000;
 
-type PeerData = { roomId?: string; name?: string };
+type PeerData = { roomId?: string; name?: string; chatAt?: number[] };
 type Peer = Socket<any, any, any, PeerData>;
 
 const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
@@ -64,9 +67,15 @@ export class RoomsGateway implements OnGatewayDisconnect {
     const { roomId, name } = socket.data;
     if (!roomId) return { error: 'not-joined' };
     if (!text || text.length > MAX_CHAT) return { error: 'invalid-text' };
+    const now = Date.now();
+    const recent = (socket.data.chatAt ?? []).filter(
+      (t) => now - t < CHAT_WINDOW_MS,
+    );
+    if (recent.length >= CHAT_BURST) return { error: 'rate-limited' };
+    socket.data.chatAt = [...recent, now];
     this.server
       .to(roomId)
-      .emit('chat', { from: socket.id, name, text, at: Date.now() });
+      .emit('chat', { from: socket.id, name, text, at: now });
     return { ok: true };
   }
 

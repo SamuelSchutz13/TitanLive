@@ -104,4 +104,15 @@ describe('RoomsGateway (e2e)', () => {
       }),
     ).toEqual({ error: 'room-full' });
   });
+
+  it('rate-limits chat bursts', async () => {
+    const a = connect();
+    await send(a, 'join', { roomId: 'room-spam', name: 'Ana' });
+    for (let i = 0; i < 5; i++) {
+      expect(await send(a, 'chat', { text: `m${i}` })).toEqual({ ok: true });
+    }
+    expect(await send(a, 'chat', { text: 'm5' })).toEqual({
+      error: 'rate-limited',
+    });
+  });
 });
