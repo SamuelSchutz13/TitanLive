@@ -9,7 +9,7 @@ import {
 import { Server, Socket } from 'socket.io';
 
 const ROOM_ID = /^[A-Za-z0-9_-]{6,64}$/;
-// P2P mesh: whoever shares the screen uploads one stream per viewer.
+// shortcut: P2P mesh, the sharer uploads one stream per viewer; move to an SFU (mediasoup/LiveKit) for bigger rooms.
 const MAX_PEERS = 10;
 const MAX_NAME = 32;
 const MAX_CHAT = 500;
@@ -19,7 +19,7 @@ type Peer = Socket<any, any, any, PeerData>;
 
 const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
 
-// Rooms live only in Socket.IO memory: nothing is stored, no history.
+// shortcut: rooms live in one process memory (no history by design); add the Socket.IO Redis adapter to run more than one instance.
 @WebSocketGateway({ cors: { origin: process.env.WEB_ORIGIN ?? true } })
 export class RoomsGateway implements OnGatewayDisconnect {
   @WebSocketServer() server!: Server<any, any, any, PeerData>;
