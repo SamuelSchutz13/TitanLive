@@ -59,6 +59,24 @@ describe('RoomsGateway (e2e)', () => {
       text: 'oi',
     });
 
+    const media = once(a, 'chat');
+    await send(b, 'chat', {
+      file: { type: 'image/png', data: Buffer.from([1, 2, 3]) },
+    });
+    expect(await media).toMatchObject({ file: { type: 'image/png' } });
+    expect(
+      await send(b, 'chat', {
+        file: { type: 'text/html', data: Buffer.from('x') },
+      }),
+    ).toEqual({
+      error: 'invalid-file',
+    });
+    expect(
+      await send(b, 'chat', {
+        file: { type: 'video/mp4', data: Buffer.alloc(8 * 1024 * 1024 + 1) },
+      }),
+    ).toEqual({ error: 'file-too-big' });
+
     const left = once(a, 'peer-left');
     b.disconnect();
     expect(await left).toEqual({ id: second.id });

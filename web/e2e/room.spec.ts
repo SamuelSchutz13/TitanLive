@@ -35,8 +35,19 @@ test('two people join, chat and watch a shared screen', async ({ browser }) => {
   await expect(ana.locator('#room-meta')).toContainText('2 de 10');
 
   await bia.getByLabel('Mensagem').fill('oi Ana');
-  await bia.getByRole('button', { name: 'Enviar' }).click();
+  await bia.getByRole('button', { name: 'Enviar', exact: true }).click();
   await expect(ana.locator('#messages')).toContainText('oi Ana');
+
+  // 1x1 PNG
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64');
+  await bia.locator('#file').setInputFiles({ name: 'dot.png', mimeType: 'image/png', buffer: png });
+  await expect(ana.locator('#messages img.msg-media')).toHaveJSProperty('naturalWidth', 1);
+
+  await bia.getByRole('button', { name: 'Gravar áudio' }).click();
+  await expect(bia.getByLabel('Mensagem')).toHaveAttribute('placeholder', /Gravando/);
+  await bia.waitForTimeout(1000);
+  await bia.getByRole('button', { name: 'Parar e enviar áudio' }).click();
+  await expect(ana.locator('#messages audio.msg-media')).toHaveCount(1);
 
   await ana.getByRole('button', { name: 'Compartilhar tela' }).click();
   await expect(bia.locator('#stage')).toHaveClass(/is-live/, { timeout: 15_000 });
@@ -56,11 +67,11 @@ test('switches language and theme', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Idioma' }).click();
   await page.getByRole('button', { name: 'Español' }).click();
-  await expect(page.locator('#home-title')).toHaveText('Salas privadas, sin registro');
+  await expect(page.locator('#home-title')).toHaveText('Miren juntos. Hablen en vivo.');
   await page.getByRole('button', { name: 'Idioma' }).click();
   await page.getByRole('button', { name: 'English' }).click();
   await expect(page.getByRole('button', { name: 'Language' })).toBeVisible();
-  await expect(page.locator('#home-title')).toHaveText('Private rooms, no sign-up');
+  await expect(page.locator('#home-title')).toHaveText('Watch together. Talk live.');
 
   const theme = () => page.evaluate(() => document.documentElement.dataset.theme);
   const before = await theme();
@@ -68,7 +79,7 @@ test('switches language and theme', async ({ page }) => {
   expect(await theme()).not.toBe(before);
   await page.reload();
   expect(await theme()).not.toBe(before);
-  await expect(page.locator('#home-title')).toHaveText('Private rooms, no sign-up');
+  await expect(page.locator('#home-title')).toHaveText('Watch together. Talk live.');
 });
 
 test('rejects a bad room code', async ({ page }) => {
@@ -108,7 +119,7 @@ test('rejoins the room after the connection drops', async ({ browser }) => {
   await expect(ana.locator('#people li')).toHaveCount(2, { timeout: 15_000 });
   await expect(bia.locator('#room-meta')).toContainText('2 de 10');
   await bia.getByLabel('Mensagem').fill('voltei');
-  await bia.getByRole('button', { name: 'Enviar' }).click();
+  await bia.getByRole('button', { name: 'Enviar', exact: true }).click();
   await expect(ana.locator('#messages')).toContainText('voltei');
   await expect(bia.locator('#stage')).toHaveClass(/is-live/, { timeout: 15_000 });
 });

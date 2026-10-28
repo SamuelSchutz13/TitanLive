@@ -14,6 +14,9 @@ const ROOM_ID = /^[A-Za-z0-9_-]{6,64}$/;
 const MAX_PEERS = 10;
 const MAX_NAME = 32;
 const MAX_CHAT = 500;
+// shortcut: files are relayed through the server in one message; send large media over WebRTC data channels if 8 MB gets tight.
+const MAX_FILE = 8 * 1024 * 1024;
+const MEDIA = /^(image|video|audio)\/[\w.+-]+$/;
 // Sliding window per socket: at most CHAT_BURST messages every CHAT_WINDOW_MS.
 const CHAT_BURST = 5;
 const CHAT_WINDOW_MS = 5000;
@@ -24,7 +27,10 @@ type Peer = Socket<any, any, any, PeerData>;
 const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
 
 // shortcut: rooms live in one process memory (no history by design); add the Socket.IO Redis adapter to run more than one instance.
-@WebSocketGateway({ cors: { origin: process.env.WEB_ORIGIN ?? true } })
+@WebSocketGateway({
+  cors: { origin: process.env.WEB_ORIGIN ?? true },
+  maxHttpBufferSize: MAX_FILE + 64 * 1024,
+})
 export class RoomsGateway implements OnGatewayDisconnect {
   @WebSocketServer() server!: Server<any, any, any, PeerData>;
 
@@ -64,19 +70,37 @@ export class RoomsGateway implements OnGatewayDisconnect {
 
   @SubscribeMessage('chat')
   chat(@ConnectedSocket() socket: Peer, @MessageBody() body: unknown) {
-    const text = str((body as Record<string, unknown> | null)?.text);
+    const { text: rawText, file: rawFile } = (body ?? {}) as Record<
+      string,
+      unknown
+    >;
+    const text = str(rawText);
     const { roomId, name } = socket.data;
     if (!roomId) return { error: 'not-joined' };
-    if (!text || text.length > MAX_CHAT) return { error: 'invalid-text' };
+    const file = rawFile as { type?: unknown; data?: unknown } | undefined;
+    if (file) {
+      if (
+        typeof file.type !== 'string' ||
+        !MEDIA.test(file.type) ||
+        !Buffer.isBuffer(file.data)
+      )
+        return { error: 'invalid-file' };
+      if (file.data.length > MAX_FILE) return { error: 'file-too-big' };
+    } else if (!text || text.length > MAX_CHAT)
+      return { error: 'invalid-text' };
     const now = Date.now();
     const recent = (socket.data.chatAt ?? []).filter(
       (t) => now - t < CHAT_WINDOW_MS,
     );
     if (recent.length >= CHAT_BURST) return { error: 'rate-limited' };
     socket.data.chatAt = [...recent, now];
-    this.server
-      .to(roomId)
-      .emit('chat', { from: socket.id, name, text, at: now });
+    this.server.to(roomId).emit('chat', {
+      from: socket.id,
+      name,
+      text,
+      at: now,
+      ...(file && { file: { type: file.type, data: file.data } }),
+    });
     return { ok: true };
   }
 

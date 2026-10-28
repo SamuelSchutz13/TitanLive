@@ -64,8 +64,8 @@
               <p class="stage-label">Ana</p>
             </div>
             <ul class="people preview-people">
-              <li class="speaking"><span class="avatar" style="--h: 28">A</span><span class="who">Ana</span></li>
-              <li><span class="avatar" style="--h: 160">B</span><span class="who">Bia</span></li>
+              <li class="speaking"><span class="avatar" style="--h: 28">A</span><span class="who">Ana</span><span class="pill pill-sharing" data-i18n="sharing"></span></li>
+              <li><span class="avatar" style="--h: 160">B</span><span class="who">Bia</span><span class="pill pill-muted" data-i18n="muted"></span></li>
               <li><span class="avatar" style="--h: 260">C</span><span class="who">Caio</span></li>
             </ul>
           </div>
@@ -74,16 +74,9 @@
 
       <section id="room" aria-labelledby="room-title" hidden>
         <div class="room-head">
-          <div>
-            <h1 id="room-title"></h1>
-            <p id="room-meta" class="muted"></p>
-          </div>
-          <div class="actions">
-            <button id="copy" class="secondary" data-i18n="copyLink"></button>
-            <button id="mic" class="icon-btn"></button>
-            <button id="share" class="primary"></button>
-            <button id="leave" class="danger" data-i18n="leave"></button>
-          </div>
+          <h1 id="room-title"></h1>
+          <button id="copy" class="secondary chip"><span data-icon="link"></span><span id="copy-label" data-i18n="copyLink"></span></button>
+          <p id="room-meta" class="muted"></p>
         </div>
         <p id="room-error" class="error" role="alert"></p>
 
@@ -92,6 +85,12 @@
             <video id="stage-video" autoplay playsinline muted></video>
             <p id="stage-label" class="stage-label"></p>
             <p class="stage-empty muted" data-i18n="stageEmpty"></p>
+            <!-- All call controls in one dock over the stage. -->
+            <div class="dock">
+              <button id="mic" class="icon-btn"></button>
+              <button id="share" class="icon-btn" data-icon="screen"></button>
+              <button id="leave" class="icon-btn leave" data-i18n-aria="leave" data-icon="leave"></button>
+            </div>
           </div>
 
           <aside class="side">
@@ -104,6 +103,9 @@
               <ol id="messages" class="messages" aria-live="polite"></ol>
               <p id="chat-empty" class="faint" data-i18n="chatEmpty"></p>
               <form id="chat-form" class="joined">
+                <button id="attach" class="icon-btn" type="button" data-i18n-aria="attach" data-icon="clip"></button>
+                <button id="record" class="icon-btn" type="button"></button>
+                <input id="file" type="file" accept="image/*,video/*,audio/*" hidden />
                 <label for="msg" class="sr-only" data-i18n="msgLabel"></label>
                 <input id="msg" maxlength="500" autocomplete="off" />
                 <button class="icon-btn" data-i18n-aria="send" data-icon="send"></button>
