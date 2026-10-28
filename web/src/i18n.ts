@@ -149,6 +149,12 @@ export function setLang(next: Lang) {
   for (const el of document.querySelectorAll<HTMLElement>('[data-i18n]')) {
     el.textContent = t(el.dataset.i18n as Key);
   }
+  // Icon-only controls: the name lives in aria-label, shown as a tooltip too.
+  for (const el of document.querySelectorAll<HTMLElement>('[data-i18n-aria]')) {
+    const label = t(el.dataset.i18nAria as Key);
+    el.setAttribute('aria-label', label);
+    el.title = label;
+  }
 }
 
 export function t(key: Key, vars: Record<string, string | number> = {}) {
