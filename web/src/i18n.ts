@@ -38,6 +38,7 @@ const pt = {
   'err-room-full': 'Essa sala já está cheia (10 pessoas).',
   'err-already-joined': 'Você já está numa sala.',
   'err-share': 'Não foi possível compartilhar a tela.',
+  'err-rate-limited': 'Calma! Espere alguns segundos para mandar mais mensagens.',
   'err-unknown': 'Algo deu errado. Tente de novo.',
 };
 
@@ -83,6 +84,7 @@ const en: Dict = {
   'err-room-full': 'This room is full (10 people).',
   'err-already-joined': 'You are already in a room.',
   'err-share': 'Could not share your screen.',
+  'err-rate-limited': 'Slow down! Wait a few seconds before sending more messages.',
   'err-unknown': 'Something went wrong. Try again.',
 };
 
@@ -126,6 +128,7 @@ const es: Dict = {
   'err-room-full': 'Esta sala está llena (10 personas).',
   'err-already-joined': 'Ya estás en una sala.',
   'err-share': 'No se pudo compartir la pantalla.',
+  'err-rate-limited': '¡Calma! Espera unos segundos para enviar más mensajes.',
   'err-unknown': 'Algo salió mal. Inténtalo de nuevo.',
 };
 

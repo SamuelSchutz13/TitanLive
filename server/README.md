@@ -25,8 +25,8 @@ Swagger em http://localhost:3000/docs (`GET /health` + resumo dos eventos Socket
 | `signal` | `{ from, data }` |
 | `chat` | `{ from, name, text, at }` |
 
-Regras: `roomId` `[A-Za-z0-9_-]{6,64}` (gerado pelo cliente, aleatório = privado), nome até 32, chat até 500, máx. 10 por sala.
-Erros: `invalid-room`, `invalid-name`, `already-joined`, `room-full`, `invalid-peer`, `not-joined`, `invalid-text`.
+Regras: `roomId` `[A-Za-z0-9_-]{6,64}` (gerado pelo cliente, aleatório = privado), nome até 32, chat até 500 (máx. 5 mensagens a cada 5 s por pessoa), máx. 10 por sala.
+Erros: `invalid-room`, `invalid-name`, `already-joined`, `room-full`, `invalid-peer`, `not-joined`, `invalid-text`, `rate-limited`.
 
 ## Observabilidade (SigNoz)
 

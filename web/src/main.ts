@@ -162,8 +162,12 @@ chatForm.addEventListener('submit', async (e) => {
   const text = msgInput.value.trim();
   if (!text || !room) return;
   msgInput.value = '';
+  roomError.textContent = '';
   const ack = await room.sendChat(text);
-  if (ack.error) showError(roomError, ack.error);
+  if (ack.error) {
+    msgInput.value = text;
+    showError(roomError, ack.error);
+  }
 });
 
 const hue = (id: string) => [...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
