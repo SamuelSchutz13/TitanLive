@@ -22,7 +22,7 @@
 </p>
 
 <p align="center">
-  <img src=".github/assets/room.png" alt="A TitanLive room: the shared screen on the left, people with mute and sharing capsules and the chat with an image on the right" />
+  <img src=".github/assets/room.png" alt="A TitanLive room: the shared screen on the left, people with status capsules and the chat with a voice note on the right" />
 </p>
 
 > [!NOTE]
@@ -33,7 +33,8 @@
 - **Rooms in one click**: a random link is the key. Only people with the link get in, up to 10 per room.
 - **Screen sharing**: one person shares, everyone watches on the big stage.
 - **Voice**: mic on/off with one button, and a gold ring shows who is speaking. Joined without a mic? Turn it on later.
-- **Chat with media**: text, images, videos and audio (up to 8 MB each), with avatars and times.
+- **Chat with media**: text, images, videos and audio files (up to 8 MB each), plus voice notes recorded right in the chat.
+- **One dock for the call**: mic, screen sharing and leave sit together over the stage, and copy link sits next to the room name.
 - **Who is here**: avatars of everyone in the room next to the counter, and status capsules for *you*, *muted* and *sharing*.
 - **Reconnects by itself** when the connection drops.
 - **English, Português and Español**, dark and light themes.

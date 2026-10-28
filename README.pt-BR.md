@@ -22,7 +22,7 @@
 </p>
 
 <p align="center">
-  <img src=".github/assets/room.png" alt="Uma sala do TitanLive: a tela compartilhada à esquerda, as pessoas com cápsulas de mudo e compartilhando e o chat com uma imagem à direita" />
+  <img src=".github/assets/room.png" alt="Uma sala do TitanLive: a tela compartilhada à esquerda, as pessoas com cápsulas de status e o chat com uma mensagem de voz à direita" />
 </p>
 
 > [!NOTE]
@@ -33,7 +33,8 @@
 - **Sala em um clique**: um link aleatório é a chave. Só entra quem recebe o link, até 10 pessoas por sala.
 - **Compartilhamento de tela**: uma pessoa compartilha e todo mundo assiste no palco.
 - **Voz**: liga e desliga o microfone num botão, e um anel dourado mostra quem está falando. Entrou sem microfone? Ative depois.
-- **Chat com mídia**: texto, imagens, vídeos e áudios (até 8 MB cada), com avatar e horário.
+- **Chat com mídia**: texto, imagens, vídeos e arquivos de áudio (até 8 MB cada), e mensagens de voz gravadas direto no chat.
+- **Controles num lugar só**: microfone, compartilhar tela e sair ficam juntos numa barra sobre o palco, e o copiar link fica ao lado do nome da sala.
 - **Quem está na sala**: os avatares de todo mundo ao lado do contador e cápsulas de status para *você*, *mudo* e *compartilhando*.
 - **Reconecta sozinho** quando a conexão cai.
 - **Português, English e Español**, tema escuro e claro.
