@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TitanLive</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <header class="bar">
+      <div class="col bar-in">
+        <a class="brand" href="./">
+          <svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="13" /><path d="M3.6 13.5h24.8M3.4 18.5h25.2" /></svg>
+          TitanLive
+        </a>
+        <div class="tools">
+          <label class="sr-only" for="lang" data-i18n="language">Idioma</label>
+          <select id="lang">
+            <option value="pt">Português</option>
+            <option value="en">English</option>
+            <option value="es">Español</option>
+          </select>
+          <button id="theme" class="ghost" type="button"></button>
+        </div>
+      </div>
+    </header>
+
+    <main class="col">
+      <section id="home" aria-labelledby="home-title">
+        <div class="home-grid">
+          <div>
+            <h1 id="home-title" data-i18n="homeTitle"></h1>
+            <p class="sub" data-i18n="homeSub"></p>
+
+            <form id="home-form" class="panel home-form" novalidate>
+              <div class="field">
+                <label for="name" data-i18n="nameLabel"></label>
+                <input id="name" maxlength="32" autocomplete="nickname" />
+              </div>
+              <div class="create">
+                <h2 data-i18n="createTitle"></h2>
+                <p class="muted" data-i18n="createText"></p>
+                <button class="primary" name="action" value="create" data-i18n="createBtn"></button>
+              </div>
+              <div class="field">
+                <h2 data-i18n="joinTitle"></h2>
+                <label for="code" data-i18n="codeLabel"></label>
+                <div class="joined">
+                  <input id="code" autocomplete="off" spellcheck="false" />
+                  <button id="join-btn" class="secondary" name="action" value="join" data-i18n="joinBtn"></button>
+                </div>
+              </div>
+            </form>
+            <p id="home-error" class="error" role="alert"></p>
+          </div>
+
+          <!-- A still of the room itself, built from the room's own parts. -->
+          <div class="preview" aria-hidden="true">
+            <div class="stage is-live">
+              <svg class="preview-planet" viewBox="0 0 32 32"><circle cx="16" cy="16" r="13" /><path d="M3.6 13.5h24.8M3.4 18.5h25.2" /></svg>
+              <p class="stage-label">Ana</p>
+            </div>
+            <ul class="people preview-people">
+              <li class="speaking"><span class="avatar" style="--h: 28">A</span><span class="who">Ana</span></li>
+              <li><span class="avatar" style="--h: 160">B</span><span class="who">Bia</span></li>
+              <li><span class="avatar" style="--h: 260">C</span><span class="who">Caio</span></li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section id="room" aria-labelledby="room-title" hidden>
+        <div class="room-head">
+          <div>
+            <h1 id="room-title"></h1>
+            <p id="room-meta" class="muted"></p>
+          </div>
+          <div class="actions">
+            <button id="copy" class="secondary" data-i18n="copyLink"></button>
+            <button id="mic" class="secondary"></button>
+            <button id="share" class="primary"></button>
+            <button id="leave" class="danger" data-i18n="leave"></button>
+          </div>
+        </div>
+        <p id="room-error" class="error" role="alert"></p>
+
+        <div class="room-grid">
+          <div id="stage" class="stage">
+            <video id="stage-video" autoplay playsinline muted></video>
+            <p id="stage-label" class="stage-label"></p>
+            <p class="stage-empty muted" data-i18n="stageEmpty"></p>
+          </div>
+
+          <aside class="side">
+            <div class="panel">
+              <h2 data-i18n="people"></h2>
+              <ul id="people" class="people"></ul>
+            </div>
+            <div class="panel chat">
+              <h2 data-i18n="chat"></h2>
+              <ol id="messages" class="messages" aria-live="polite"></ol>
+              <p id="chat-empty" class="faint" data-i18n="chatEmpty"></p>
+              <form id="chat-form" class="joined">
+                <label for="msg" class="sr-only" data-i18n="msgLabel"></label>
+                <input id="msg" maxlength="500" autocomplete="off" />
+                <button class="secondary" data-i18n="send"></button>
+              </form>
+            </div>
+          </aside>
+        </div>
+        <div id="audio" hidden></div>
+      </section>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
