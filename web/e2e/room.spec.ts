@@ -43,6 +43,12 @@ test('two people join, chat and watch a shared screen', async ({ browser }) => {
   await bia.locator('#file').setInputFiles({ name: 'dot.png', mimeType: 'image/png', buffer: png });
   await expect(ana.locator('#messages img.msg-media')).toHaveJSProperty('naturalWidth', 1);
 
+  await bia.getByRole('button', { name: 'Gravar áudio' }).click();
+  await expect(bia.getByLabel('Mensagem')).toHaveAttribute('placeholder', /Gravando/);
+  await bia.waitForTimeout(1000);
+  await bia.getByRole('button', { name: 'Parar e enviar áudio' }).click();
+  await expect(ana.locator('#messages audio.msg-media')).toHaveCount(1);
+
   await ana.getByRole('button', { name: 'Compartilhar tela' }).click();
   await expect(bia.locator('#stage')).toHaveClass(/is-live/, { timeout: 15_000 });
   await expect(bia.locator('#stage-label')).toHaveText('Tela de Ana');

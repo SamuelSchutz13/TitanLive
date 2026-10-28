@@ -155,6 +155,7 @@ async function enterRoom(roomId: string, name: string) {
 }
 
 function leaveRoom() {
+  stopRecording(false);
   room?.leave();
   for (const el of media.values()) URL.revokeObjectURL(el.src);
   media.clear();
@@ -182,9 +183,9 @@ shareBtn.addEventListener('click', async () => {
 });
 $('copy').addEventListener('click', async () => {
   await navigator.clipboard.writeText(location.href);
-  const btn = $('copy');
-  btn.textContent = t('copied');
-  setTimeout(() => (btn.textContent = t('copyLink')), 1500);
+  const label = $('copy-label');
+  label.textContent = t('copied');
+  setTimeout(() => (label.textContent = t('copyLink')), 1500);
 });
 
 const chatForm = $<HTMLFormElement>('chat-form');
@@ -204,16 +205,65 @@ chatForm.addEventListener('submit', async (e) => {
 
 const fileInput = $<HTMLInputElement>('file');
 $('attach').addEventListener('click', () => fileInput.click());
-fileInput.addEventListener('change', async () => {
-  const file = fileInput.files?.[0];
-  fileInput.value = '';
-  if (!file || !room) return;
+async function sendFile(file: File) {
+  if (!room) return;
   roomError.textContent = '';
   if (!/^(image|video|audio)\//.test(file.type)) return showError(roomError, 'invalid-file');
   if (file.size > MAX_FILE) return showError(roomError, 'file-too-big');
   const ack = await room.sendFile(file);
   if (ack.error) showError(roomError, ack.error);
+}
+fileInput.addEventListener('change', () => {
+  const file = fileInput.files?.[0];
+  fileInput.value = '';
+  if (file) void sendFile(file);
 });
+
+// Voice notes: click to record, click again to send. A separate mic stream so muting the call doesn't silence it.
+const recordBtn = $<HTMLButtonElement>('record');
+let recorder: MediaRecorder | null = null;
+let recordTimer = 0;
+function renderRecord() {
+  const on = !!recorder;
+  recordBtn.innerHTML = on ? icons.stop : icons.mic;
+  recordBtn.classList.toggle('is-recording', on);
+  recordBtn.dataset.i18nAria = on ? 'stopRecord' : 'record';
+  recordBtn.setAttribute('aria-label', t(recordBtn.dataset.i18nAria as Key));
+  recordBtn.title = recordBtn.getAttribute('aria-label')!;
+  msgInput.disabled = on;
+  if (!on) msgInput.placeholder = '';
+}
+function stopRecording(send: boolean) {
+  if (!recorder) return;
+  const r = recorder;
+  recorder = null;
+  clearInterval(recordTimer);
+  if (!send) r.ondataavailable = null;
+  r.stop();
+  r.stream.getTracks().forEach((tr) => tr.stop());
+  renderRecord();
+}
+recordBtn.addEventListener('click', async () => {
+  if (recorder) return stopRecording(true);
+  roomError.textContent = '';
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true }).catch(() => null);
+  if (!stream) return showError(roomError, 'record');
+  const r = new MediaRecorder(stream);
+  r.ondataavailable = (e) => {
+    // The server accepts a bare MIME type, so drop the ";codecs=…" part.
+    const type = (r.mimeType || 'audio/webm').split(';')[0];
+    void sendFile(new File([e.data], `voice.${type.split('/')[1]}`, { type }));
+  };
+  const started = Date.now();
+  recordTimer = window.setInterval(() => {
+    const s = Math.floor((Date.now() - started) / 1000);
+    msgInput.placeholder = t('recording', { time: `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` });
+  }, 250);
+  recorder = r;
+  r.start();
+  renderRecord();
+});
+renderRecord();
 
 // Built once per message so a playing video survives re-renders.
 const media = new Map<ChatMessage, HTMLImageElement | HTMLMediaElement>();
@@ -296,7 +346,10 @@ function render() {
   micBtn.dataset.i18nAria = micLive ? 'micOn' : 'micOff';
   micBtn.setAttribute('aria-label', t(micBtn.dataset.i18nAria as Key));
   micBtn.title = micBtn.getAttribute('aria-label')!;
-  shareBtn.textContent = r.screen ? t('stopShare') : t('share');
+  shareBtn.classList.toggle('is-on', !!r.screen);
+  shareBtn.dataset.i18nAria = r.screen ? 'stopShare' : 'share';
+  shareBtn.setAttribute('aria-label', t(shareBtn.dataset.i18nAria as Key));
+  shareBtn.title = shareBtn.getAttribute('aria-label')!;
 
   const remoteScreens = [...r.peers.values()].flatMap((p) =>
     [...p.streams.values()].filter(hasVideo).map((s) => ({ peer: p, stream: s })),

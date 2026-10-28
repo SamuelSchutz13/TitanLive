@@ -19,6 +19,9 @@ const pt = {
   micOff: 'Ativar microfone',
   share: 'Compartilhar tela',
   stopShare: 'Parar de compartilhar',
+  record: 'Gravar áudio',
+  stopRecord: 'Parar e enviar áudio',
+  recording: 'Gravando… {time}',
   leave: 'Sair',
   people: 'Na sala',
   you: 'você',
@@ -43,6 +46,7 @@ const pt = {
   'err-rate-limited': 'Calma! Espere alguns segundos para mandar mais mensagens.',
   'err-invalid-file': 'Só dá para enviar imagem, vídeo ou áudio.',
   'err-file-too-big': 'Arquivo grande demais (máximo 8 MB).',
+  'err-record': 'Não foi possível gravar. Verifique a permissão do microfone.',
   'err-unknown': 'Algo deu errado. Tente de novo.',
 };
 
@@ -69,6 +73,9 @@ const en: Dict = {
   micOff: 'Unmute',
   share: 'Share screen',
   stopShare: 'Stop sharing',
+  record: 'Record audio',
+  stopRecord: 'Stop and send audio',
+  recording: 'Recording… {time}',
   leave: 'Leave',
   people: 'In the room',
   you: 'you',
@@ -93,6 +100,7 @@ const en: Dict = {
   'err-rate-limited': 'Slow down! Wait a few seconds before sending more messages.',
   'err-invalid-file': 'You can only send images, videos or audio.',
   'err-file-too-big': 'File too large (8 MB max).',
+  'err-record': 'Could not record. Check the microphone permission.',
   'err-unknown': 'Something went wrong. Try again.',
 };
 
@@ -117,6 +125,9 @@ const es: Dict = {
   micOff: 'Activar micrófono',
   share: 'Compartir pantalla',
   stopShare: 'Dejar de compartir',
+  record: 'Grabar audio',
+  stopRecord: 'Detener y enviar audio',
+  recording: 'Grabando… {time}',
   leave: 'Salir',
   people: 'En la sala',
   you: 'tú',
@@ -141,6 +152,7 @@ const es: Dict = {
   'err-rate-limited': '¡Calma! Espera unos segundos para enviar más mensajes.',
   'err-invalid-file': 'Solo puedes enviar imágenes, videos o audio.',
   'err-file-too-big': 'Archivo demasiado grande (máximo 8 MB).',
+  'err-record': 'No se pudo grabar. Revisa el permiso del micrófono.',
   'err-unknown': 'Algo salió mal. Inténtalo de nuevo.',
 };
 

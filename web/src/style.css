@@ -351,17 +351,72 @@ select {
 }
 
 /* ---------- room ---------- */
+/* Title, then copy-link beside it; who is here on the line below. */
 .room-head {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: auto auto 1fr;
   align-items: center;
-  gap: var(--gap);
-  flex-wrap: wrap;
+  column-gap: 12px;
 }
-.actions {
+.room-head #room-meta {
+  grid-column: 1 / -1;
+}
+.chip {
+  height: 30px;
+  padding: 0 12px 0 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  justify-self: start;
+}
+.chip .icon {
+  width: 15px;
+  height: 15px;
+}
+.dock {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  z-index: 1;
   display: flex;
   gap: 8px;
-  flex-wrap: wrap;
+  padding: 6px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--rule);
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  backdrop-filter: blur(12px);
+}
+.dock .icon-btn {
+  width: 44px;
+  height: 44px;
+}
+.dock .icon {
+  width: 20px;
+  height: 20px;
+}
+.icon-btn.is-on {
+  background: var(--accent);
+  color: #000;
+}
+.icon-btn.leave {
+  background: var(--negative);
+  color: #fff;
+}
+.icon-btn.leave:hover:not(:disabled) {
+  background: var(--negative);
+  opacity: 0.88;
+}
+.icon-btn.is-recording {
+  background: var(--negative);
+  color: #fff;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+@keyframes pulse {
+  50% {
+    opacity: 0.6;
+  }
 }
 /* 1152 = 798 stage + 14 + 340 side; the row takes the window height left under the header. */
 .room-grid {
@@ -402,7 +457,7 @@ select {
 .stage-label {
   position: absolute;
   left: 14px;
-  bottom: 14px;
+  top: 14px;
   padding: 4px 10px 4px 22px;
   border-radius: var(--radius-control);
   background: rgb(0 0 0 / 0.7);
@@ -592,7 +647,7 @@ audio.msg-media {
 @media (max-width: 900px) {
   .room-grid,
   .home-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .room-grid {
     height: auto;
@@ -619,15 +674,10 @@ audio.msg-media {
   .icon-btn {
     width: 44px;
   }
-  .actions {
-    width: 100%;
-  }
-  .actions button {
-    flex: 1 1 40%;
-  }
 }
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;
+    animation: none !important;
   }
 }
