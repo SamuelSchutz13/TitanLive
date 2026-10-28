@@ -20,12 +20,15 @@ const MEDIA = /^(image|video|audio)\/[\w.+-]+$/;
 // Sliding window per socket: at most CHAT_BURST messages every CHAT_WINDOW_MS.
 const CHAT_BURST = 5;
 const CHAT_WINDOW_MS = 5000;
+export const REACTIONS = ['👍', '😂', '❤️', '👏', '🎉', '😮'];
+const REACT_BURST = 10;
 
 type PeerData = {
   roomId?: string;
   name?: string;
   muted?: boolean;
   chatAt?: number[];
+  reactAt?: number[];
 };
 type Peer = Socket<any, any, any, PeerData>;
 
@@ -78,6 +81,24 @@ export class RoomsGateway implements OnGatewayDisconnect {
     if (typeof muted !== 'boolean') return { error: 'invalid-mute' };
     socket.data.muted = muted;
     socket.to(roomId).emit('peer-muted', { id: socket.id, muted });
+    return { ok: true };
+  }
+
+  // Floating emoji over the stage: a fixed set, so nothing but these ever renders.
+  @SubscribeMessage('react')
+  react(@ConnectedSocket() socket: Peer, @MessageBody() body: unknown) {
+    const emoji = (body as Record<string, unknown> | null)?.emoji;
+    const { roomId, name } = socket.data;
+    if (!roomId) return { error: 'not-joined' };
+    if (typeof emoji !== 'string' || !REACTIONS.includes(emoji))
+      return { error: 'invalid-reaction' };
+    const now = Date.now();
+    const recent = (socket.data.reactAt ?? []).filter(
+      (t) => now - t < CHAT_WINDOW_MS,
+    );
+    if (recent.length >= REACT_BURST) return { error: 'rate-limited' };
+    socket.data.reactAt = [...recent, now];
+    this.server.to(roomId).emit('react', { from: socket.id, name, emoji });
     return { ok: true };
   }
 

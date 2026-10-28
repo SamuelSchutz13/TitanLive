@@ -32,7 +32,9 @@
 
 - **Sala em um clique**: um link aleatório é a chave. Só entra quem recebe o link, até 10 pessoas por sala.
 - **Compartilhamento de tela**: uma pessoa compartilha e todo mundo assiste no palco.
-- **Voz**: liga e desliga o microfone num botão, e um anel dourado mostra quem está falando. Entrou sem microfone? Ative depois.
+- **Câmeras**: ligue a sua e todo mundo aparece em blocos. Eles ocupam o palco ou ficam em fila ao lado da tela compartilhada.
+- **Reações**: 👍 😂 ❤️ 👏 🎉 😮 sobem pelo palco com o nome de quem mandou.
+- **Voz**: liga e desliga o microfone num botão, e um anel dourado mostra quem está falando. Entrou sem microfone? Ative depois. A redução de ruído vem ligada, e o **modo música** desliga ela quando você quer tocar algo.
 - **Chat com mídia**: texto, imagens, vídeos e arquivos de áudio (até 8 MB cada), e mensagens de voz gravadas direto no chat.
 - **Controles num lugar só**: microfone, compartilhar tela e sair ficam juntos numa barra sobre o palco, e o copiar link fica ao lado do nome da sala.
 - **Quem está na sala**: os avatares de todo mundo ao lado do contador e cápsulas de status para *você*, *mudo* e *compartilhando*.

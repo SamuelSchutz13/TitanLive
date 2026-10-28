@@ -7,7 +7,7 @@ export default defineConfig({
   use: {
     baseURL: 'http://localhost:5173',
     locale: 'pt-BR',
-    permissions: ['microphone'],
+    permissions: ['microphone', 'camera'],
     launchOptions: { args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] },
   },
   webServer: [
