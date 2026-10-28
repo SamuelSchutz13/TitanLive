@@ -408,11 +408,6 @@ select {
   background: var(--negative);
   opacity: 0.88;
 }
-.icon-btn.is-recording {
-  background: var(--negative);
-  color: #fff;
-  animation: pulse 1.2s ease-in-out infinite;
-}
 @keyframes pulse {
   50% {
     opacity: 0.6;
@@ -610,8 +605,85 @@ select {
   margin-top: 4px;
   border-radius: 8px;
 }
-audio.msg-media {
-  width: 100%;
+.messages .player {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 260px;
+  padding: 5px 14px 5px 5px;
+  border-radius: var(--radius-control);
+  background: var(--raised);
+}
+.player .play {
+  width: 32px;
+  height: 32px;
+  background: var(--accent);
+  color: #000;
+}
+.player .play:hover:not(:disabled) {
+  background: var(--accent);
+  opacity: 0.88;
+}
+.player .play .icon {
+  width: 14px;
+  height: 14px;
+}
+/* A 16px hit area around a 4px track. */
+.player .bar {
+  flex: 1;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  background: linear-gradient(var(--control), var(--control)) center / 100% 4px no-repeat;
+}
+.player .fill {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+.player .time {
+  min-width: 32px;
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+/* Recording swaps the input row for: discard, a live dot and the timer; send confirms. */
+.rec-bar {
+  display: none;
+}
+.is-recording .rec-bar {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding-right: 14px;
+  border-radius: var(--radius-control);
+  background: var(--raised);
+}
+.rec-bar .icon-btn:hover:not(:disabled) {
+  color: var(--negative);
+}
+.is-recording #attach,
+.is-recording #record,
+.is-recording #msg {
+  display: none;
+}
+.is-recording [data-icon='send'] {
+  background: var(--accent);
+  color: #000;
+}
+.rec-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--negative);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+#rec-time {
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
 }
 #room-meta {
   margin-top: 6px;

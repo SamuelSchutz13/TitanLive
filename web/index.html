@@ -104,7 +104,12 @@
               <p id="chat-empty" class="faint" data-i18n="chatEmpty"></p>
               <form id="chat-form" class="joined">
                 <button id="attach" class="icon-btn" type="button" data-i18n-aria="attach" data-icon="clip"></button>
-                <button id="record" class="icon-btn" type="button"></button>
+                <button id="record" class="icon-btn" type="button" data-i18n-aria="record" data-icon="mic"></button>
+                <span class="rec-bar">
+                  <button id="rec-cancel" class="icon-btn" type="button" data-i18n-aria="discard" data-icon="trash"></button>
+                  <span class="rec-dot" aria-hidden="true"></span>
+                  <span id="rec-time" role="timer"></span>
+                </span>
                 <input id="file" type="file" accept="image/*,video/*,audio/*" hidden />
                 <label for="msg" class="sr-only" data-i18n="msgLabel"></label>
                 <input id="msg" maxlength="500" autocomplete="off" />
