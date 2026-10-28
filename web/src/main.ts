@@ -26,56 +26,52 @@ const store = {
 
 let room: Room | null = null;
 
-/* ---------- theme + language ---------- */
+/* ---------- settings: theme, language, noise suppression ---------- */
 
 const root = document.documentElement;
-const themeBtn = $<HTMLButtonElement>('theme');
-const langBtn = $<HTMLButtonElement>('lang-btn');
-const langMenu = $('lang-menu');
+const settings = $<HTMLDialogElement>('settings');
+const noiseInput = $<HTMLInputElement>('noise');
 
 for (const el of document.querySelectorAll<HTMLElement>('[data-icon]')) {
   el.innerHTML = icons[el.dataset.icon as keyof typeof icons];
 }
-for (const b of langMenu.querySelectorAll<HTMLButtonElement>('[data-lang]')) {
+for (const b of settings.querySelectorAll<HTMLButtonElement>('[data-lang]')) {
   b.insertAdjacentHTML('afterbegin', flags[b.dataset.lang as Lang]);
 }
 
 function applyTheme(theme: string) {
   root.dataset.theme = theme;
-  // The icon shows the theme you switch to.
-  themeBtn.dataset.i18nAria = theme === 'dark' ? 'toLight' : 'toDark';
-  themeBtn.innerHTML = theme === 'dark' ? icons.sun : icons.moon;
-  setLang(getLang());
+  for (const b of settings.querySelectorAll<HTMLElement>('[data-theme-choice]')) {
+    b.setAttribute('aria-pressed', String(b.dataset.themeChoice === theme));
+  }
 }
 
 function applyLang(lang: Lang) {
-  langBtn.innerHTML = flags[lang];
-  for (const b of langMenu.querySelectorAll<HTMLButtonElement>('[data-lang]')) {
-    b.setAttribute('aria-current', String(b.dataset.lang === lang));
+  for (const b of settings.querySelectorAll<HTMLElement>('[data-lang]')) {
+    b.setAttribute('aria-pressed', String(b.dataset.lang === lang));
   }
   setLang(lang);
   if (room) render();
 }
 
-themeBtn.addEventListener('click', () => {
-  const next = root.dataset.theme === 'dark' ? 'light' : 'dark';
-  store.set('theme', next);
-  applyTheme(next);
+$('settings-btn').addEventListener('click', () => settings.showModal());
+$('settings-close').addEventListener('click', () => settings.close());
+// A click on the backdrop lands on the dialog itself.
+settings.addEventListener('click', (e) => e.target === settings && settings.close());
+settings.addEventListener('click', (e) => {
+  const btn = (e.target as HTMLElement).closest<HTMLElement>('[data-theme-choice], [data-lang]');
+  if (btn?.dataset.themeChoice) {
+    store.set('theme', btn.dataset.themeChoice);
+    applyTheme(btn.dataset.themeChoice);
+  } else if (btn?.dataset.lang) {
+    store.set('lang', btn.dataset.lang);
+    applyLang(btn.dataset.lang as Lang);
+  }
 });
-langMenu.addEventListener('toggle', (e) => {
-  if ((e as ToggleEvent).newState !== 'open') return;
-  // Popovers open in the top layer; pin this one under its button, right-aligned.
-  const r = langBtn.getBoundingClientRect();
-  langMenu.style.top = `${r.bottom + 6}px`;
-  langMenu.style.right = `${document.documentElement.clientWidth - r.right}px`;
-});
-langMenu.addEventListener('click', (e) => {
-  const lang = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-lang]')?.dataset.lang as Lang | undefined;
-  if (!lang) return;
-  store.set('lang', lang);
-  applyLang(lang);
-  langMenu.hidePopover();
-  langBtn.focus();
+noiseInput.checked = store.get('noise') !== 'off';
+noiseInput.addEventListener('change', () => {
+  store.set('noise', noiseInput.checked ? 'on' : 'off');
+  void room?.setVoiceProcessing(noiseInput.checked);
 });
 
 applyTheme(store.get('theme') ?? (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'));
@@ -145,6 +141,7 @@ codeInput.addEventListener('input', () => {
 const messages: ChatMessage[] = [];
 const people = $<HTMLUListElement>('people');
 const stageVideo = $<HTMLVideoElement>('stage-video');
+const selfPreview = $<HTMLVideoElement>('self-preview');
 const audioBox = $('audio');
 const roomError = $('room-error');
 const micBtn = $<HTMLButtonElement>('mic');
@@ -157,6 +154,7 @@ function show(screen: 'home' | 'room') {
 
 async function enterRoom(roomId: string, name: string) {
   const r = new Room(roomId, name);
+  r.voiceProcessing = noiseInput.checked;
   room = r;
   messages.length = 0;
   r.onChange = render;
@@ -237,8 +235,6 @@ camBtn.addEventListener('click', async () => {
   roomError.textContent = '';
   await room.startCamera().catch(() => showError(roomError, 'camera'));
 });
-const voiceBtn = $<HTMLButtonElement>('voice');
-voiceBtn.addEventListener('click', () => void room?.setVoiceProcessing(!room.voiceProcessing));
 
 const reactMenu = $('react-menu');
 const reactBtn = $<HTMLButtonElement>('react-btn');
@@ -560,10 +556,6 @@ function render() {
   camBtn.innerHTML = r.camera ? icons.camera : icons.cameraOff;
   camBtn.classList.toggle('is-on', !!r.camera);
   setLabel(camBtn, r.camera ? 'cameraOff' : 'cameraOn');
-  voiceBtn.hidden = !r.mic;
-  voiceBtn.classList.toggle('is-on', !r.voiceProcessing);
-  voiceBtn.setAttribute('aria-pressed', String(!r.voiceProcessing));
-  setLabel(voiceBtn, 'musicMode');
 
   // Streams are screens unless their sender said "camera".
   const videos = (kind: VideoKind) =>
@@ -612,6 +604,8 @@ function render() {
   // Your own screen isn't played back: capturing this tab or screen would show it inside itself, over and over.
   const shown = r.screen ? null : (stage?.stream ?? null);
   if (stageVideo.srcObject !== shown) stageVideo.srcObject = shown;
+  // A small preview instead: it may still nest itself, but only at thumbnail size.
+  if (selfPreview.srcObject !== r.screen) selfPreview.srcObject = r.screen;
   $('stage').classList.toggle('is-live', !!stage);
   $('stage').classList.toggle('is-self', !!r.screen);
   $('stage-label').textContent = stage ? t('stageLabel', { name: stage.name }) : '';

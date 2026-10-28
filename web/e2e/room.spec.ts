@@ -72,9 +72,10 @@ test('two people join, chat and watch a shared screen', async ({ browser }) => {
   await ana.getByRole('button', { name: 'Compartilhar tela' }).click();
   await expect(bia.locator('#stage')).toHaveClass(/is-live/, { timeout: 15_000 });
   await expect(bia.locator('#stage-label')).toHaveText('Tela de Ana');
-  // The sharer doesn't watch their own screen: that's the infinite mirror.
+  // The sharer gets a small preview, not the full stage: that's the infinite mirror.
   await expect(ana.locator('#stage-video')).toBeHidden();
   await expect(ana.locator('.stage-self')).toBeVisible();
+  await expect.poll(() => ana.locator('#self-preview').evaluate((v: HTMLVideoElement) => v.videoWidth)).toBeGreaterThan(0);
   await expect
     .poll(() => bia.locator('#stage-video').evaluate((v: HTMLVideoElement) => v.videoWidth))
     .toBeGreaterThan(0);
@@ -86,23 +87,32 @@ test('two people join, chat and watch a shared screen', async ({ browser }) => {
   await expect(bia.locator('#people li')).toHaveCount(1);
 });
 
-test('switches language and theme', async ({ page }) => {
+test('settings: language, theme and noise suppression', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Idioma' }).click();
+  await page.getByRole('button', { name: 'Configurações' }).click();
   await page.getByRole('button', { name: 'Español' }).click();
   await expect(page.locator('#home-title')).toHaveText('Miren juntos. Hablen en vivo.');
-  await page.getByRole('button', { name: 'Idioma' }).click();
   await page.getByRole('button', { name: 'English' }).click();
-  await expect(page.getByRole('button', { name: 'Language' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
   await expect(page.locator('#home-title')).toHaveText('Watch together. Talk live.');
 
-  const theme = () => page.evaluate(() => document.documentElement.dataset.theme);
-  const before = await theme();
-  await page.locator('#theme').click();
-  expect(await theme()).not.toBe(before);
+  await page.getByRole('button', { name: 'Light' }).click();
+  await expect(page.getByRole('button', { name: 'Light' })).toHaveAttribute('aria-pressed', 'true');
+  expect(await page.evaluate(() => document.documentElement.dataset.theme)).toBe('light');
+  await page.getByRole('button', { name: 'Dark' }).click();
+  expect(await page.evaluate(() => document.documentElement.dataset.theme)).toBe('dark');
+
+  const noise = page.getByRole('switch', { name: /Noise suppression/ });
+  await expect(noise).toBeChecked();
+  await noise.uncheck();
+  await page.getByRole('button', { name: 'Close' }).click();
+  await expect(page.locator('#settings')).toHaveJSProperty('open', false);
+
+  // All three survive a reload.
   await page.reload();
-  expect(await theme()).not.toBe(before);
+  expect(await page.evaluate(() => document.documentElement.dataset.theme)).toBe('dark');
   await expect(page.locator('#home-title')).toHaveText('Watch together. Talk live.');
+  await expect(page.getByRole('switch', { name: /Noise suppression/, includeHidden: true })).not.toBeChecked();
 });
 
 test('rejects a bad room code', async ({ page }) => {
@@ -194,7 +204,7 @@ test('mutes, unmutes and turns the mic on after joining without one', async ({ b
   await expect.poll(audioTracks).toContain(1);
 });
 
-test('cameras, reactions, music mode and announcements', async ({ browser }) => {
+test('cameras, reactions, noise suppression and announcements', async ({ browser }) => {
   const ana = await open(browser);
   await ana.goto('/');
   await ana.getByLabel('Seu apelido').fill('Ana');
@@ -223,9 +233,11 @@ test('cameras, reactions, music mode and announcements', async ({ browser }) => 
   await expect(ana.locator('.reaction')).toContainText('🎉');
   await expect(ana.locator('.reaction')).toContainText('Bia');
 
-  const music = ana.getByRole('button', { name: /Modo música/ });
-  await music.click();
-  await expect(music).toHaveAttribute('aria-pressed', 'true');
+  // Noise suppression lives in settings and applies to the live mic.
+  await ana.getByRole('button', { name: 'Configurações' }).click();
+  await ana.getByRole('switch', { name: /Redução de ruído/ }).uncheck();
+  await ana.getByRole('button', { name: 'Fechar' }).click();
+  await expect.poll(() => ana.evaluate(() => localStorage.getItem('noise'))).toBe('off');
 
   await bia.getByRole('button', { name: 'Sair' }).click();
   await expect(ana.locator('#announcer')).toHaveText('Bia saiu da sala');

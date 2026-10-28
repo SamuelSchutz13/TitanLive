@@ -455,13 +455,25 @@ select {
 }
 .stage-self {
   display: none;
-  max-width: 40ch;
+  justify-items: center;
+  gap: 12px;
   padding: var(--pad);
   text-align: center;
   text-wrap: balance;
 }
 .stage.is-self .stage-self {
-  display: block;
+  display: grid;
+}
+.stage-self p {
+  max-width: 40ch;
+}
+#self-preview {
+  width: min(420px, 70%);
+  aspect-ratio: 16 / 9;
+  border-radius: 12px;
+  border: 1px solid var(--rule);
+  background: #000;
+  object-fit: contain;
 }
 .stage.is-live .stage-empty {
   display: none;
@@ -520,6 +532,107 @@ select {
 }
 .room-status.error {
   min-height: 0;
+}
+.settings {
+  width: min(420px, calc(100% - 32px));
+  padding: var(--pad);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  color: var(--text);
+}
+.settings::backdrop {
+  background: rgb(0 0 0 / 0.5);
+}
+.settings-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.setting {
+  padding: 14px 0;
+  border-top: 1px solid var(--rule);
+}
+.setting h3 {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+}
+/* Segmented control: the pressed option is filled. */
+.seg {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--radius-control);
+  background: var(--raised);
+}
+.seg button {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 10px;
+  background: transparent;
+  font-weight: 500;
+}
+.seg button[aria-pressed='true'] {
+  background: var(--surface);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.2);
+}
+.seg .icon {
+  width: 16px;
+  height: 16px;
+}
+.switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  cursor: pointer;
+}
+.switch-title {
+  display: block;
+  font-weight: 500;
+}
+.switch-hint {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 13px;
+}
+/* A native checkbox drawn as a switch; still a checkbox to keyboards and screen readers. */
+input[role='switch'] {
+  appearance: none;
+  flex: none;
+  position: relative;
+  width: 40px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--control);
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+input[role='switch']::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 120ms ease;
+}
+input[role='switch']:checked {
+  background: var(--accent);
+}
+input[role='switch']:checked::after {
+  transform: translateX(16px);
 }
 .lightbox {
   padding: 0;
