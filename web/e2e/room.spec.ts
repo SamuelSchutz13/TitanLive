@@ -112,3 +112,41 @@ test('rejoins the room after the connection drops', async ({ browser }) => {
   await expect(ana.locator('#messages')).toContainText('voltei');
   await expect(bia.locator('#stage')).toHaveClass(/is-live/, { timeout: 15_000 });
 });
+
+test('mutes, unmutes and turns the mic on after joining without one', async ({ browser }) => {
+  const ana = await open(browser);
+  await ana.goto('/');
+  await ana.getByLabel('Seu apelido').fill('Ana');
+  await ana.getByRole('button', { name: 'Criar sala' }).click();
+
+  await ana.getByRole('button', { name: 'Silenciar' }).click();
+  await expect(ana.locator('#people li').first()).toContainText('mudo');
+  await ana.getByRole('button', { name: 'Ativar microfone' }).click();
+  await expect(ana.locator('#people li').first()).not.toContainText('mudo');
+
+  // Bia denies the mic on join, then turns it on from the room.
+  const bia = await open(browser);
+  await bia.addInitScript(() => {
+    const real = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+    let denied = false;
+    navigator.mediaDevices.getUserMedia = (c) => {
+      if (denied) return real(c);
+      denied = true;
+      return Promise.reject(new DOMException('denied', 'NotAllowedError'));
+    };
+  });
+  await bia.goto(ana.url());
+  await bia.getByLabel('Seu apelido').fill('Bia');
+  await bia.getByRole('button', { name: 'Entrar', exact: true }).click();
+  await expect(bia.locator('#people li').first()).toContainText('mudo');
+  await expect(ana.locator('#people li')).toHaveCount(2);
+
+  await bia.getByRole('button', { name: 'Ativar microfone' }).click();
+  await expect(bia.getByRole('button', { name: 'Silenciar' })).toBeVisible();
+  // Ana now plays an audio stream from Bia.
+  const audioTracks = () =>
+    ana.locator('#audio audio').evaluateAll((els) =>
+      els.map((a) => ((a as HTMLAudioElement).srcObject as MediaStream).getAudioTracks().length),
+    );
+  await expect.poll(audioTracks).toContain(1);
+});

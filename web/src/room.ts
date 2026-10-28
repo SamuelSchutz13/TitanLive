@@ -93,6 +93,14 @@ export class Room {
     this.onChange();
   }
 
+  // For people who joined without a mic (denied or none): ask again and add it to the live call.
+  async enableMic() {
+    const mic = await navigator.mediaDevices.getUserMedia({ audio: true });
+    this.mic = mic;
+    for (const p of this.peers.values()) mic.getTracks().forEach((t) => p.pc.addTrack(t, mic));
+    this.onChange();
+  }
+
   setMuted(muted: boolean) {
     this.mic?.getAudioTracks().forEach((t) => (t.enabled = !muted));
     this.onChange();

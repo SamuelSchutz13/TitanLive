@@ -165,7 +165,12 @@ function leaveRoom() {
 }
 
 $('leave').addEventListener('click', leaveRoom);
-micBtn.addEventListener('click', () => room?.setMuted(!room.muted));
+micBtn.addEventListener('click', async () => {
+  if (!room) return;
+  if (room.mic) return room.setMuted(!room.muted);
+  roomError.textContent = '';
+  await room.enableMic().catch(() => showError(roomError, 'mic'));
+});
 shareBtn.addEventListener('click', async () => {
   if (!room) return;
   if (room.screen) return room.stopShare();
@@ -228,9 +233,13 @@ function render() {
   $('room-title').textContent = t('roomTitle', { code: r.roomId.slice(0, 6) });
   $('room-meta').textContent = r.reconnecting ? t('reconnecting') : t('roomMeta', { n: r.peers.size + 1 });
 
-  micBtn.disabled = !r.mic;
-  micBtn.textContent = !r.mic ? t('noMic') : r.muted ? t('micOff') : t('micOn');
-  micBtn.setAttribute('aria-pressed', String(!!r.mic && r.muted));
+  // Icon shows the current state; the label says what a click does.
+  const micLive = !!r.mic && !r.muted;
+  micBtn.innerHTML = micLive ? icons.mic : icons.micOff;
+  micBtn.classList.toggle('is-off', !micLive);
+  micBtn.dataset.i18nAria = micLive ? 'micOn' : 'micOff';
+  micBtn.setAttribute('aria-label', t(micBtn.dataset.i18nAria as Key));
+  micBtn.title = micBtn.getAttribute('aria-label')!;
   shareBtn.textContent = r.screen ? t('stopShare') : t('share');
 
   const remoteScreens = [...r.peers.values()].flatMap((p) =>
@@ -238,7 +247,7 @@ function render() {
   );
 
   const me = [t('you')];
-  if (r.mic && r.muted) me.push(t('muted'));
+  if (!micLive) me.push(t('muted'));
   if (r.screen) me.push(t('sharing'));
   const rows = [personRow('me', r.name, me, r.myId)];
   for (const p of r.peers.values()) {

@@ -204,6 +204,9 @@ button:disabled {
 .icon-btn:hover:not(:disabled) {
   background: var(--control);
 }
+.icon-btn.is-off {
+  color: var(--negative);
+}
 .icon {
   width: 18px;
   height: 18px;

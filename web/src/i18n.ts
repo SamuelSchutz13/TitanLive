@@ -17,7 +17,6 @@ const pt = {
   copied: 'Link copiado',
   micOn: 'Silenciar',
   micOff: 'Ativar microfone',
-  noMic: 'Sem microfone',
   share: 'Compartilhar tela',
   stopShare: 'Parar de compartilhar',
   leave: 'Sair',
@@ -39,6 +38,7 @@ const pt = {
   'err-room-full': 'Essa sala já está cheia (10 pessoas).',
   'err-already-joined': 'Você já está numa sala.',
   'err-share': 'Não foi possível compartilhar a tela.',
+  'err-mic': 'Não foi possível acessar o microfone. Verifique a permissão do navegador.',
   'err-rate-limited': 'Calma! Espere alguns segundos para mandar mais mensagens.',
   'err-unknown': 'Algo deu errado. Tente de novo.',
 };
@@ -64,7 +64,6 @@ const en: Dict = {
   copied: 'Link copied',
   micOn: 'Mute',
   micOff: 'Unmute',
-  noMic: 'No microphone',
   share: 'Share screen',
   stopShare: 'Stop sharing',
   leave: 'Leave',
@@ -86,6 +85,7 @@ const en: Dict = {
   'err-room-full': 'This room is full (10 people).',
   'err-already-joined': 'You are already in a room.',
   'err-share': 'Could not share your screen.',
+  'err-mic': 'Could not access the microphone. Check the browser permission.',
   'err-rate-limited': 'Slow down! Wait a few seconds before sending more messages.',
   'err-unknown': 'Something went wrong. Try again.',
 };
@@ -109,7 +109,6 @@ const es: Dict = {
   copied: 'Enlace copiado',
   micOn: 'Silenciar',
   micOff: 'Activar micrófono',
-  noMic: 'Sin micrófono',
   share: 'Compartir pantalla',
   stopShare: 'Dejar de compartir',
   leave: 'Salir',
@@ -131,6 +130,7 @@ const es: Dict = {
   'err-room-full': 'Esta sala está llena (10 personas).',
   'err-already-joined': 'Ya estás en una sala.',
   'err-share': 'No se pudo compartir la pantalla.',
+  'err-mic': 'No se pudo acceder al micrófono. Revisa el permiso del navegador.',
   'err-rate-limited': '¡Calma! Espera unos segundos para enviar más mensajes.',
   'err-unknown': 'Algo salió mal. Inténtalo de nuevo.',
 };
