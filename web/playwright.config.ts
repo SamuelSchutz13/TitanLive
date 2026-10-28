@@ -4,6 +4,8 @@ export default defineConfig({
   testDir: 'e2e',
   // Each test runs 2-3 browsers with fake media; more workers starve ICE on one machine.
   workers: 2,
+  // WebRTC on a shared CI runner is sometimes slow to connect; one retry there, none locally.
+  retries: process.env.CI ? 1 : 0,
   use: {
     baseURL: 'http://localhost:5173',
     locale: 'pt-BR',

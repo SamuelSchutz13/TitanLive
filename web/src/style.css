@@ -440,7 +440,8 @@ select {
   display: grid;
   place-items: center;
 }
-.stage video {
+/* Only the shared screen; camera tiles have their own rules. */
+#stage-video {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -449,7 +450,17 @@ select {
   background: #000;
   display: none;
 }
-.stage.is-live video {
+.stage.is-live:not(.is-self) #stage-video {
+  display: block;
+}
+.stage-self {
+  display: none;
+  max-width: 40ch;
+  padding: var(--pad);
+  text-align: center;
+  text-wrap: balance;
+}
+.stage.is-self .stage-self {
   display: block;
 }
 .stage.is-live .stage-empty {
@@ -874,6 +885,15 @@ select {
   font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
+.messages a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.chat.is-drop {
+  outline: 2px dashed var(--accent);
+  outline-offset: -6px;
+}
 #chat-empty {
   flex: 1;
   margin-bottom: 12px;
@@ -896,7 +916,7 @@ select {
     aspect-ratio: auto;
     display: block;
   }
-  .stage.has-cams.is-live video {
+  .stage.has-cams.is-live #stage-video {
     position: relative;
     height: auto;
     aspect-ratio: 16 / 9;
