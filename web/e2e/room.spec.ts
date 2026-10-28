@@ -75,3 +75,37 @@ test('rejects a bad room code', async ({ page }) => {
   await page.getByRole('button', { name: 'Entrar', exact: true }).click();
   await expect(page.getByRole('alert').first()).toHaveText('Código de sala inválido.');
 });
+
+test('rejoins the room after the connection drops', async ({ browser }) => {
+  const ana = await open(browser);
+  await ana.goto('/');
+  await ana.getByLabel('Seu apelido').fill('Ana');
+  await ana.getByRole('button', { name: 'Criar sala' }).click();
+  await ana.getByRole('button', { name: 'Compartilhar tela' }).click();
+
+  // Proxy Bia's socket so the test can cut it.
+  const bia = await open(browser);
+  const cut: (() => Promise<void>)[] = [];
+  await bia.routeWebSocket(/socket\.io/, (ws) => {
+    const server = ws.connectToServer();
+    cut.push(async () => {
+      await server.close();
+      await ws.close();
+    });
+  });
+  await bia.goto(ana.url());
+  await bia.getByLabel('Seu apelido').fill('Bia');
+  await bia.getByRole('button', { name: 'Entrar', exact: true }).click();
+  await expect(bia.locator('#stage')).toHaveClass(/is-live/, { timeout: 15_000 });
+
+  await cut[0]();
+  await expect(ana.locator('#people li')).toHaveCount(1);
+
+  // Back under a new id: presence, chat and the shared screen all come back.
+  await expect(ana.locator('#people li')).toHaveCount(2, { timeout: 15_000 });
+  await expect(bia.locator('#room-meta')).toContainText('2 de 10');
+  await bia.getByLabel('Mensagem').fill('voltei');
+  await bia.getByRole('button', { name: 'Enviar' }).click();
+  await expect(ana.locator('#messages')).toContainText('voltei');
+  await expect(bia.locator('#stage')).toHaveClass(/is-live/, { timeout: 15_000 });
+});
