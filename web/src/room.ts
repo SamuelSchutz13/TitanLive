@@ -8,6 +8,8 @@ export interface Peer {
   muted: boolean;
   pc: RTCPeerConnection;
   streams: Map<string, MediaStream>;
+  // What each incoming video stream is; the sender tells us before adding its tracks.
+  kinds: Map<string, VideoKind>;
   polite: boolean;
   makingOffer: boolean;
   ignoreOffer: boolean;
@@ -25,11 +27,14 @@ export interface ChatMessage {
 // Matches the server's cap; bigger payloads would get the socket dropped.
 export const MAX_FILE = 8 * 1024 * 1024;
 
-type Signal = { description?: RTCSessionDescriptionInit; candidate?: RTCIceCandidateInit };
+export type VideoKind = 'screen' | 'camera';
+type Signal = { description?: RTCSessionDescriptionInit; candidate?: RTCIceCandidateInit; kinds?: Record<string, VideoKind> };
 // The server hands out STUN plus short-lived TURN credentials when it has TURN configured.
 type JoinAck = { id: string; peers: { id: string; name: string; muted: boolean }[]; iceServers: RTCIceServer[] } | { error: string };
 
 export const SERVER_URL = SERVER;
+// Asked for explicitly: some browsers default these off for getUserMedia.
+const VOICE = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
 
 export const hasVideo = (s: MediaStream) => s.getVideoTracks().some((t) => t.readyState === 'live' && !t.muted);
 
@@ -40,13 +45,16 @@ export class Room {
   private iceServers: RTCIceServer[] = [];
   mic: MediaStream | null = null;
   screen: MediaStream | null = null;
+  camera: MediaStream | null = null;
   private socket: Socket;
-  private screenSenders = new Map<string, RTCRtpSender[]>();
+  // Keyed `${kind}:${peerId}`.
+  private videoSenders = new Map<string, RTCRtpSender[]>();
+  onReact = (_r: { from: string; name: string; emoji: string }) => {};
 
   onChange = () => {};
   onChat = (_m: ChatMessage) => {};
   onError = (_code: string) => {};
-  onPresence = (_kind: 'join' | 'leave') => {};
+  onPresence = (_kind: 'join' | 'leave', _name: string) => {};
 
   readonly roomId: string;
   readonly name: string;
@@ -57,13 +65,14 @@ export class Room {
     this.socket = io(SERVER, { transports: ['websocket'], reconnectionAttempts: 10 });
     this.socket.on('peer-joined', ({ id, name, muted }: { id: string; name: string; muted: boolean }) => {
       this.addPeer(id, name, muted);
-      this.onPresence('join');
+      this.onPresence('join', name);
       this.onChange();
     });
     this.socket.on('peer-left', ({ id }: { id: string }) => {
-      this.peers.get(id)?.pc.close();
+      const left = this.peers.get(id);
+      left?.pc.close();
       this.peers.delete(id);
-      this.onPresence('leave');
+      if (left) this.onPresence('leave', left.name);
       this.onChange();
     });
     this.socket.on('peer-muted', ({ id, muted }: { id: string; muted: boolean }) => {
@@ -73,6 +82,7 @@ export class Room {
     });
     this.socket.on('signal', ({ from, data }: { from: string; data: Signal }) => void this.handleSignal(from, data));
     this.socket.on('chat', (m: ChatMessage) => this.onChat(m));
+    this.socket.on('react', (r: { from: string; name: string; emoji: string }) => this.onReact(r));
     // A dropped connection rejoins the same room under a new id; peers see us leave and come back.
     this.socket.on('disconnect', (reason) => {
       if (reason === 'io client disconnect') return;
@@ -92,7 +102,7 @@ export class Room {
 
   async join() {
     // Mic is optional: without it you still watch and hear.
-    this.mic = await navigator.mediaDevices.getUserMedia({ audio: true }).catch(() => null);
+    this.mic = await navigator.mediaDevices.getUserMedia({ audio: VOICE }).catch(() => null);
     await this.enter();
   }
 
@@ -110,7 +120,7 @@ export class Room {
 
   // For people who joined without a mic (denied or none): ask again and add it to the live call.
   async enableMic() {
-    const mic = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const mic = await navigator.mediaDevices.getUserMedia({ audio: VOICE });
     this.mic = mic;
     for (const p of this.peers.values()) mic.getTracks().forEach((t) => p.pc.addTrack(t, mic));
     this.socket.emit('mute', { muted: false });
@@ -132,19 +142,47 @@ export class Room {
     this.screen = screen;
     // Browser's own "stop sharing" bar ends the track.
     screen.getVideoTracks()[0].addEventListener('ended', () => this.stopShare());
-    for (const peer of this.peers.values()) this.addScreen(peer);
+    for (const peer of this.peers.values()) this.addVideo(peer, 'screen');
     this.onChange();
   }
 
   stopShare() {
-    if (!this.screen) return;
-    this.screen.getTracks().forEach((t) => t.stop());
-    this.screen = null;
+    this.stopVideo('screen');
+  }
+
+  async startCamera() {
+    this.camera = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 360 } });
+    for (const peer of this.peers.values()) this.addVideo(peer, 'camera');
+    this.onChange();
+  }
+
+  stopCamera() {
+    this.stopVideo('camera');
+  }
+
+  private stopVideo(kind: VideoKind) {
+    const stream = this[kind];
+    if (!stream) return;
+    stream.getTracks().forEach((t) => t.stop());
+    this[kind] = null;
     for (const peer of this.peers.values()) {
-      this.screenSenders.get(peer.id)?.forEach((s) => peer.pc.removeTrack(s));
-      this.screenSenders.delete(peer.id);
+      this.videoSenders.get(`${kind}:${peer.id}`)?.forEach((s) => peer.pc.removeTrack(s));
+      this.videoSenders.delete(`${kind}:${peer.id}`);
     }
     this.onChange();
+  }
+
+  // Music mode turns the browser's voice processing off so instruments aren't squashed.
+  // Kept here: getSettings() doesn't reliably reflect these constraints in every browser.
+  voiceProcessing = true;
+  async setVoiceProcessing(on: boolean) {
+    await this.mic?.getAudioTracks()[0]?.applyConstraints({ echoCancellation: on, noiseSuppression: on, autoGainControl: on });
+    this.voiceProcessing = on;
+    this.onChange();
+  }
+
+  react(emoji: string) {
+    return this.socket.emitWithAck('react', { emoji }) as Promise<{ ok?: true; error?: string }>;
   }
 
   sendChat(text: string) {
@@ -158,6 +196,7 @@ export class Room {
 
   leave() {
     this.stopShare();
+    this.stopCamera();
     this.mic?.getTracks().forEach((t) => t.stop());
     this.closePeers();
     this.socket.disconnect();
@@ -166,19 +205,20 @@ export class Room {
   private closePeers() {
     for (const p of this.peers.values()) p.pc.close();
     this.peers.clear();
-    this.screenSenders.clear();
+    this.videoSenders.clear();
   }
 
   private send(to: string, data: Signal) {
     this.socket.emit('signal', { to, data });
   }
 
-  private addScreen(peer: Peer) {
-    if (!this.screen) return;
-    const screen = this.screen;
-    this.screenSenders.set(
-      peer.id,
-      screen.getTracks().map((t) => peer.pc.addTrack(t, screen)),
+  private addVideo(peer: Peer, kind: VideoKind) {
+    const stream = this[kind];
+    if (!stream) return;
+    this.send(peer.id, { kinds: { [stream.id]: kind } });
+    this.videoSenders.set(
+      `${kind}:${peer.id}`,
+      stream.getTracks().map((t) => peer.pc.addTrack(t, stream)),
     );
   }
 
@@ -186,7 +226,7 @@ export class Room {
   private addPeer(id: string, name: string, muted: boolean) {
     if (this.peers.has(id)) return this.peers.get(id)!;
     const pc = new RTCPeerConnection({ iceServers: this.iceServers });
-    const peer: Peer = { id, name, muted, pc, streams: new Map(), polite: this.myId < id, makingOffer: false, ignoreOffer: false, settingAnswer: false };
+    const peer: Peer = { id, name, muted, pc, streams: new Map(), kinds: new Map(), polite: this.myId < id, makingOffer: false, ignoreOffer: false, settingAnswer: false };
     this.peers.set(id, peer);
 
     pc.onnegotiationneeded = async () => {
@@ -214,13 +254,18 @@ export class Room {
     };
 
     this.mic?.getTracks().forEach((t) => pc.addTrack(t, this.mic!));
-    this.addScreen(peer);
+    this.addVideo(peer, 'screen');
+    this.addVideo(peer, 'camera');
     return peer;
   }
 
-  private async handleSignal(from: string, { description, candidate }: Signal) {
+  private async handleSignal(from: string, { description, candidate, kinds }: Signal) {
     const peer = this.peers.get(from);
     if (!peer) return;
+    if (kinds) {
+      for (const [id, kind] of Object.entries(kinds)) if (kind === 'camera' || kind === 'screen') peer.kinds.set(id, kind);
+      return this.onChange();
+    }
     const { pc } = peer;
     try {
       if (description) {

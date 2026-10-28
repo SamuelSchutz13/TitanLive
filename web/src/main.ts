@@ -1,7 +1,7 @@
 import './style.css';
 import { detectLang, dicts, getLang, setLang, t, type Key, type Lang } from './i18n';
 import { flags, icons } from './icons';
-import { hasVideo, MAX_FILE, Room, SERVER_URL, type ChatMessage } from './room';
+import { hasVideo, MAX_FILE, Room, SERVER_URL, type ChatMessage, type VideoKind } from './room';
 
 const ROOM_ID = /^[A-Za-z0-9_-]{6,64}$/;
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -165,7 +165,11 @@ async function enterRoom(roomId: string, name: string) {
     renderChat();
   };
   r.onError = (code) => showError(roomError, code);
-  r.onPresence = chime;
+  r.onPresence = (kind, name) => {
+    chime(kind);
+    announce(t(kind === 'join' ? 'joined' : 'left', { name }));
+  };
+  r.onReact = ({ name, emoji }) => floatReaction(name, emoji);
   roomError.textContent = '';
   location.hash = roomId;
   show('room');
@@ -181,6 +185,9 @@ async function enterRoom(roomId: string, name: string) {
 }
 
 function leaveRoom() {
+  tiles.clear();
+  camsBox.replaceChildren();
+  lastSharer = '';
   stopRecording(false);
   room?.leave();
   for (const { url } of media.values()) URL.revokeObjectURL(url);
@@ -213,6 +220,45 @@ $('copy').addEventListener('click', async () => {
   label.textContent = t('copied');
   setTimeout(() => (label.textContent = t('copyLink')), 1500);
 });
+
+const camBtn = $<HTMLButtonElement>('camera');
+camBtn.addEventListener('click', async () => {
+  if (!room) return;
+  if (room.camera) return room.stopCamera();
+  roomError.textContent = '';
+  await room.startCamera().catch(() => showError(roomError, 'camera'));
+});
+const voiceBtn = $<HTMLButtonElement>('voice');
+voiceBtn.addEventListener('click', () => void room?.setVoiceProcessing(!room.voiceProcessing));
+
+const reactMenu = $('react-menu');
+const reactBtn = $<HTMLButtonElement>('react-btn');
+reactMenu.addEventListener('toggle', (e) => {
+  if ((e as ToggleEvent).newState !== 'open') return;
+  // Above the dock button, centred on it.
+  const b = reactBtn.getBoundingClientRect();
+  reactMenu.style.left = `${b.left + b.width / 2 - reactMenu.offsetWidth / 2}px`;
+  reactMenu.style.top = `${b.top - reactMenu.offsetHeight - 8}px`;
+});
+reactMenu.addEventListener('click', async (e) => {
+  const emoji = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-emoji]')?.dataset.emoji;
+  if (!emoji || !room) return;
+  const ack = await room.react(emoji);
+  if (ack.error) showError(roomError, ack.error);
+});
+// Each emoji drifts up from the dock with the sender's name, then is removed.
+function floatReaction(name: string, emoji: string) {
+  const el = document.createElement('span');
+  el.className = 'reaction';
+  el.style.left = `${35 + Math.random() * 30}%`;
+  el.setAttribute('aria-hidden', 'true');
+  const who = document.createElement('small');
+  who.textContent = name;
+  el.append(emoji, who);
+  $('stage').append(el);
+  // A timer, not animationend: with reduced motion there is no animation to end.
+  setTimeout(() => el.remove(), 2400);
+}
 
 const fullBtn = $<HTMLButtonElement>('fullscreen');
 fullBtn.hidden = !document.fullscreenEnabled;
@@ -418,6 +464,38 @@ function personRow(id: string, name: string, tags: Tag[], hueKey = id) {
   return li;
 }
 
+function setLabel(btn: HTMLElement, key: Key, suffix = '') {
+  btn.dataset.i18nAria = key;
+  btn.setAttribute('aria-label', t(key));
+  btn.title = t(key) + suffix;
+}
+
+let lastSharer = '';
+const announcer = $('announcer');
+// Screen readers hear joins, leaves and screen changes through one polite live region.
+function announce(text: string) {
+  announcer.textContent = '';
+  requestAnimationFrame(() => (announcer.textContent = text));
+}
+
+// One tile per camera, reused across renders so the video doesn't blink.
+const camsBox = $('cams');
+const tiles = new Map<string, HTMLElement>();
+function camTile(name: string, stream: MediaStream, mine: boolean) {
+  let tile = tiles.get(stream.id);
+  if (!tile) {
+    tile = document.createElement('figure');
+    tile.className = mine ? 'cam mine' : 'cam';
+    const v = document.createElement('video');
+    v.autoplay = v.muted = v.playsInline = true;
+    v.srcObject = stream;
+    tile.append(v, document.createElement('figcaption'));
+    tiles.set(stream.id, tile);
+  }
+  tile.querySelector('figcaption')!.textContent = mine ? t('you') : name;
+  return tile;
+}
+
 function render() {
   const r = room;
   if (!r) return;
@@ -446,16 +524,26 @@ function render() {
   micBtn.innerHTML = micLive ? icons.mic : icons.micOff;
   micBtn.classList.toggle('is-off', !micLive);
   micBtn.dataset.i18nAria = micLive ? 'micOn' : 'micOff';
-  micBtn.setAttribute('aria-label', t(micBtn.dataset.i18nAria as Key));
-  micBtn.title = `${micBtn.getAttribute('aria-label')!} (M)`;
+  setLabel(micBtn, micBtn.dataset.i18nAria as Key, ' (M)');
   shareBtn.classList.toggle('is-on', !!r.screen);
-  shareBtn.dataset.i18nAria = r.screen ? 'stopShare' : 'share';
-  shareBtn.setAttribute('aria-label', t(shareBtn.dataset.i18nAria as Key));
-  shareBtn.title = shareBtn.getAttribute('aria-label')!;
+  setLabel(shareBtn, r.screen ? 'stopShare' : 'share');
+  camBtn.innerHTML = r.camera ? icons.camera : icons.cameraOff;
+  camBtn.classList.toggle('is-on', !!r.camera);
+  setLabel(camBtn, r.camera ? 'cameraOff' : 'cameraOn');
+  voiceBtn.hidden = !r.mic;
+  voiceBtn.classList.toggle('is-on', !r.voiceProcessing);
+  voiceBtn.setAttribute('aria-pressed', String(!r.voiceProcessing));
+  setLabel(voiceBtn, 'musicMode');
 
-  const remoteScreens = [...r.peers.values()].flatMap((p) =>
-    [...p.streams.values()].filter(hasVideo).map((s) => ({ peer: p, stream: s })),
-  );
+  // Streams are screens unless their sender said "camera".
+  const videos = (kind: VideoKind) =>
+    [...r.peers.values()].flatMap((p) =>
+      [...p.streams.values()]
+        // A camera tile shows up as soon as the track exists, even before its first frame.
+        .filter((s) => (p.kinds.get(s.id) ?? 'screen') === kind && (kind === 'camera' ? s.getVideoTracks().some((t) => t.readyState === 'live') : hasVideo(s)))
+        .map((s) => ({ peer: p, stream: s })),
+    );
+  const remoteScreens = videos('screen');
 
   const me: Tag[] = ['you'];
   if (!micLive) me.push('muted');
@@ -494,6 +582,19 @@ function render() {
   if (stageVideo.srcObject !== (stage?.stream ?? null)) stageVideo.srcObject = stage?.stream ?? null;
   $('stage').classList.toggle('is-live', !!stage);
   $('stage-label').textContent = stage ? t('stageLabel', { name: stage.name }) : '';
+  // Say it when a screen appears or goes away, not on every render.
+  const sharer = stage?.name ?? '';
+  if (sharer !== lastSharer) announce(sharer ? t('stageLabel', { name: sharer }) : t('stageEmpty'));
+  lastSharer = sharer;
+
+  const cams = videos('camera').map(({ peer, stream }) => ({ name: peer.name, stream, mine: false }));
+  if (r.camera) cams.unshift({ name: r.name, stream: r.camera, mine: true });
+  const want = cams.map((c) => camTile(c.name, c.stream, c.mine));
+  // Moving a playing <video> pauses it, so only touch the DOM when the set or order changed.
+  if (want.length !== camsBox.children.length || want.some((el, i) => camsBox.children[i] !== el)) camsBox.replaceChildren(...want);
+  for (const v of camsBox.querySelectorAll('video')) if (v.paused) void v.play().catch(() => {});
+  for (const id of tiles.keys()) if (!cams.some((c) => c.stream.id === id)) tiles.delete(id);
+  $('stage').classList.toggle('has-cams', cams.length > 0);
   renderChat();
 }
 

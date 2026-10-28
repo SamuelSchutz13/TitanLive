@@ -153,6 +153,21 @@ describe('RoomsGateway (e2e)', () => {
     expect((await fetch(`${url}/rooms/x`)).status).toBe(400);
   });
 
+  it('relays reactions from the fixed set', async () => {
+    const a = connect();
+    await send(a, 'join', { roomId: 'room-react', name: 'Ana' });
+    const got = once(a, 'react');
+    expect(await send(a, 'react', { emoji: '🎉' })).toEqual({ ok: true });
+    expect(await got).toMatchObject({ name: 'Ana', emoji: '🎉' });
+    expect(await send(a, 'react', { emoji: '<b>' })).toEqual({
+      error: 'invalid-reaction',
+    });
+    for (let i = 0; i < 9; i++) await send(a, 'react', { emoji: '👍' });
+    expect(await send(a, 'react', { emoji: '👍' })).toEqual({
+      error: 'rate-limited',
+    });
+  });
+
   it('rate-limits chat bursts', async () => {
     const a = connect();
     await send(a, 'join', { roomId: 'room-spam', name: 'Ana' });

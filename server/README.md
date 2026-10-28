@@ -16,19 +16,21 @@ Swagger em http://localhost:3000/docs (`GET /health` + resumo dos eventos Socket
 |---|---|---|
 | `join` | `{ roomId, name, muted? }` | `{ id, peers: [{id,name,muted}], iceServers }` ou `{ error }` |
 | `mute` | `{ muted }` | `{ ok }` ou `{ error }` |
-| `signal` | `{ to, data }` | `{ ok }` ou `{ error }` |
+| `react` | `{ emoji }` (👍 😂 ❤️ 👏 🎉 😮) | `{ ok }` ou `{ error }` |
+| `signal` | `{ to, data }` (`data`: `description`, `candidate` ou `kinds: {streamId: 'screen'\|'camera'}`) | `{ ok }` ou `{ error }` |
 | `chat` | `{ text }` ou `{ file: { type, data } }` | `{ ok }` ou `{ error }` |
 
 | Servidor → cliente | Payload |
 |---|---|
 | `peer-joined` | `{ id, name, muted }` |
 | `peer-muted` | `{ id, muted }` |
+| `react` | `{ from, name, emoji }` |
 | `peer-left` | `{ id }` |
 | `signal` | `{ from, data }` |
 | `chat` | `{ from, name, text, at, file? }` |
 
 Regras: `roomId` `[A-Za-z0-9_-]{6,64}` (gerado pelo cliente, aleatório = privado), nome até 32, chat até 500 caracteres ou um arquivo `image/*`, `video/*` ou `audio/*` de até 8 MB repassado sem guardar (máx. 5 mensagens a cada 5 s por pessoa), máx. 10 por sala.
-Erros: `invalid-room`, `invalid-name`, `already-joined`, `room-full`, `invalid-peer`, `not-joined`, `invalid-text`, `invalid-file`, `file-too-big`, `invalid-mute`, `rate-limited`.
+Erros: `invalid-room`, `invalid-name`, `already-joined`, `room-full`, `invalid-peer`, `not-joined`, `invalid-text`, `invalid-file`, `file-too-big`, `invalid-mute`, `invalid-reaction`, `rate-limited` (reações: 10 a cada 5 s).
 
 HTTP: `GET /rooms/:id` → `{ count, max }`, para a tela inicial avisar que a sala está cheia antes de entrar.
 

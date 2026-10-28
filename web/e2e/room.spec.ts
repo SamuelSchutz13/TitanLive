@@ -1,4 +1,5 @@
 import { expect, test, type Browser } from '@playwright/test';
+import { io } from 'socket.io-client';
 
 // Headless Chromium has no screen picker: fake the shared screen with a canvas stream.
 const fakeScreen = () => {
@@ -179,4 +180,65 @@ test('mutes, unmutes and turns the mic on after joining without one', async ({ b
       els.map((a) => ((a as HTMLAudioElement).srcObject as MediaStream).getAudioTracks().length),
     );
   await expect.poll(audioTracks).toContain(1);
+});
+
+test('cameras, reactions, music mode and announcements', async ({ browser }) => {
+  const ana = await open(browser);
+  await ana.goto('/');
+  await ana.getByLabel('Seu apelido').fill('Ana');
+  await ana.getByRole('button', { name: 'Criar sala' }).click();
+  const bia = await open(browser);
+  await bia.goto(ana.url());
+  await bia.getByLabel('Seu apelido').fill('Bia');
+  await bia.getByRole('button', { name: 'Entrar', exact: true }).click();
+  await expect(ana.locator('#announcer')).toHaveText('Bia entrou na sala');
+
+  // A camera is a tile, not a shared screen.
+  await ana.getByRole('button', { name: 'Ligar câmera' }).click();
+  await expect(bia.locator('.cam figcaption')).toHaveText('Ana');
+  await expect
+    .poll(() => bia.locator('.cam video').evaluate((v: HTMLVideoElement) => v.videoWidth))
+    .toBeGreaterThan(0);
+  await expect(bia.locator('#stage')).not.toHaveClass(/is-live/);
+  await ana.getByRole('button', { name: 'Desligar câmera' }).click();
+  await expect(bia.locator('.cam')).toHaveCount(0);
+
+  await bia.getByRole('button', { name: 'Reagir' }).click();
+  await bia.getByRole('button', { name: '🎉' }).click();
+  await expect(ana.locator('.reaction')).toContainText('🎉');
+  await expect(ana.locator('.reaction')).toContainText('Bia');
+
+  const music = ana.getByRole('button', { name: /Modo música/ });
+  await music.click();
+  await expect(music).toHaveAttribute('aria-pressed', 'true');
+
+  await bia.getByRole('button', { name: 'Sair' }).click();
+  await expect(ana.locator('#announcer')).toHaveText('Bia saiu da sala');
+});
+
+test('a full room says so on the home page', async ({ page }) => {
+  const roomId = `full-${Date.now()}`;
+  const server = process.env.SERVER_URL ?? 'http://localhost:3000';
+  const peers = Array.from({ length: 10 }, () => io(server, { transports: ['websocket'], forceNew: true }));
+  try {
+    for (const [i, s] of peers.entries()) await s.emitWithAck('join', { roomId, name: `p${i}` });
+    await page.goto(`/#${roomId}`);
+    await expect(page.locator('#room-status')).toHaveText('Essa sala já está cheia (10 pessoas).');
+    await expect(page.locator('#join-btn')).toBeDisabled();
+  } finally {
+    peers.forEach((s) => s.disconnect());
+  }
+});
+
+test('a voice note stops by itself at 5:00', async ({ page }) => {
+  await page.clock.install();
+  await page.goto('/');
+  await page.getByLabel('Seu apelido').fill('Ana');
+  await page.getByRole('button', { name: 'Criar sala' }).click();
+  await page.getByRole('button', { name: 'Gravar áudio' }).click();
+  await expect(page.getByRole('timer')).toHaveText('0:00 / 5:00');
+  await page.clock.fastForward('04:59');
+  await expect(page.locator('#chat-form')).toHaveClass(/is-recording/);
+  await page.clock.fastForward('00:02');
+  await expect(page.locator('#chat-form')).not.toHaveClass(/is-recording/);
 });
