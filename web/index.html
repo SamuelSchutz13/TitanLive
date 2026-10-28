@@ -52,6 +52,7 @@
                   <input id="code" autocomplete="off" spellcheck="false" />
                   <button id="join-btn" class="secondary" name="action" value="join" data-i18n="joinBtn"></button>
                 </div>
+                <p id="room-status" class="room-status faint" aria-live="polite"></p>
               </div>
             </form>
             <p id="home-error" class="error" role="alert"></p>
@@ -84,11 +85,13 @@
           <div id="stage" class="stage">
             <video id="stage-video" autoplay playsinline muted></video>
             <p id="stage-label" class="stage-label"></p>
+            <p id="stage-speaking" class="stage-speaking" hidden><span id="stage-speaking-icon" aria-hidden="true"></span><span id="stage-speaking-names"></span></p>
             <p class="stage-empty muted" data-i18n="stageEmpty"></p>
             <!-- All call controls in one dock over the stage. -->
             <div class="dock">
               <button id="mic" class="icon-btn"></button>
               <button id="share" class="icon-btn" data-icon="screen"></button>
+              <button id="fullscreen" class="icon-btn"></button>
               <button id="leave" class="icon-btn leave" data-i18n-aria="leave" data-icon="leave"></button>
             </div>
           </div>
@@ -121,6 +124,7 @@
         <div id="audio" hidden></div>
       </section>
     </main>
+    <dialog id="lightbox" class="lightbox"><img alt="" /></dialog>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

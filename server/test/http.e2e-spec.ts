@@ -26,6 +26,7 @@ describe('HTTP (e2e)', () => {
     const res = await request(url).get('/docs-json').expect(200);
     expect(Object.keys((res.body as { paths: object }).paths)).toEqual([
       '/health',
+      '/rooms/{id}',
     ]);
   });
 });

@@ -28,6 +28,8 @@ test('two people join, chat and watch a shared screen', async ({ browser }) => {
 
   const bia = await open(browser);
   await bia.goto(ana.url());
+  // The home page tells how full the room is before joining.
+  await expect(bia.locator('#room-status')).toHaveText('1 de 10 na sala');
   await bia.getByLabel('Seu apelido').fill('Bia');
   await bia.getByRole('button', { name: 'Entrar', exact: true }).click();
   await expect(bia.locator('#people li')).toHaveCount(2);
@@ -42,6 +44,10 @@ test('two people join, chat and watch a shared screen', async ({ browser }) => {
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64');
   await bia.locator('#file').setInputFiles({ name: 'dot.png', mimeType: 'image/png', buffer: png });
   await expect(ana.locator('#messages img.msg-media')).toHaveJSProperty('naturalWidth', 1);
+  await ana.locator('#messages img.msg-media').click();
+  await expect(ana.locator('#lightbox')).toHaveJSProperty('open', true);
+  await ana.locator('#lightbox').click();
+  await expect(ana.locator('#lightbox')).toHaveJSProperty('open', false);
 
   // Discarding sends nothing; send confirms the recording.
   await bia.getByRole('button', { name: 'Gravar áudio' }).click();
@@ -155,9 +161,18 @@ test('mutes, unmutes and turns the mic on after joining without one', async ({ b
   await bia.getByRole('button', { name: 'Entrar', exact: true }).click();
   await expect(bia.locator('#people li').first()).toContainText('mudo');
   await expect(ana.locator('#people li')).toHaveCount(2);
+  // Joined without a mic counts as muted, for everyone.
+  await expect(ana.locator('#people li').nth(1)).toContainText('mudo');
 
   await bia.getByRole('button', { name: 'Ativar microfone' }).click();
   await expect(bia.getByRole('button', { name: 'Silenciar' })).toBeVisible();
+  await expect(ana.locator('#people li').nth(1)).not.toContainText('mudo');
+
+  // M toggles the mic, and the others see it.
+  await bia.locator('body').press('m');
+  await expect(ana.locator('#people li').nth(1)).toContainText('mudo');
+  await bia.locator('body').press('m');
+  await expect(ana.locator('#people li').nth(1)).not.toContainText('mudo');
   // Ana now plays an audio stream from Bia.
   const audioTracks = () =>
     ana.locator('#audio audio').evaluateAll((els) =>

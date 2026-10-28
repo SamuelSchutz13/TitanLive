@@ -9,9 +9,9 @@ import {
 import { Server, Socket } from 'socket.io';
 import { iceServers } from './ice';
 
-const ROOM_ID = /^[A-Za-z0-9_-]{6,64}$/;
+export const ROOM_ID = /^[A-Za-z0-9_-]{6,64}$/;
 // shortcut: P2P mesh, the sharer uploads one stream per viewer; move to an SFU (mediasoup/LiveKit) for bigger rooms.
-const MAX_PEERS = 10;
+export const MAX_PEERS = 10;
 const MAX_NAME = 32;
 const MAX_CHAT = 500;
 // shortcut: files are relayed through the server in one message; send large media over WebRTC data channels if 8 MB gets tight.
@@ -21,7 +21,12 @@ const MEDIA = /^(image|video|audio)\/[\w.+-]+$/;
 const CHAT_BURST = 5;
 const CHAT_WINDOW_MS = 5000;
 
-type PeerData = { roomId?: string; name?: string; chatAt?: number[] };
+type PeerData = {
+  roomId?: string;
+  name?: string;
+  muted?: boolean;
+  chatAt?: number[];
+};
 type Peer = Socket<any, any, any, PeerData>;
 
 const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
@@ -34,9 +39,13 @@ const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
 export class RoomsGateway implements OnGatewayDisconnect {
   @WebSocketServer() server!: Server<any, any, any, PeerData>;
 
+  count(roomId: string) {
+    return this.server.sockets.adapter.rooms.get(roomId)?.size ?? 0;
+  }
+
   @SubscribeMessage('join')
   join(@ConnectedSocket() socket: Peer, @MessageBody() body: unknown) {
-    const { roomId, name } = (body ?? {}) as Record<string, unknown>;
+    const { roomId, name, muted } = (body ?? {}) as Record<string, unknown>;
     const nick = str(name);
     if (socket.data.roomId) return { error: 'already-joined' };
     if (typeof roomId !== 'string' || !ROOM_ID.test(roomId))
@@ -46,14 +55,30 @@ export class RoomsGateway implements OnGatewayDisconnect {
     const ids = [...(this.server.sockets.adapter.rooms.get(roomId) ?? [])];
     if (ids.length >= MAX_PEERS) return { error: 'room-full' };
 
-    const peers = ids.map((id) => ({
-      id,
-      name: this.server.sockets.sockets.get(id)?.data.name,
-    }));
-    socket.data = { roomId, name: nick };
+    const peers = ids.map((id) => {
+      const data = this.server.sockets.sockets.get(id)?.data;
+      return { id, name: data?.name, muted: !!data?.muted };
+    });
+    socket.data = { roomId, name: nick, muted: muted === true };
     void socket.join(roomId);
-    socket.to(roomId).emit('peer-joined', { id: socket.id, name: nick });
+    socket.to(roomId).emit('peer-joined', {
+      id: socket.id,
+      name: nick,
+      muted: muted === true,
+    });
     return { id: socket.id, peers, iceServers: iceServers() };
+  }
+
+  // Mute state is presence, not media: peers can't tell a disabled track from silence.
+  @SubscribeMessage('mute')
+  mute(@ConnectedSocket() socket: Peer, @MessageBody() body: unknown) {
+    const muted = (body as Record<string, unknown> | null)?.muted;
+    const { roomId } = socket.data;
+    if (!roomId) return { error: 'not-joined' };
+    if (typeof muted !== 'boolean') return { error: 'invalid-mute' };
+    socket.data.muted = muted;
+    socket.to(roomId).emit('peer-muted', { id: socket.id, muted });
+    return { ok: true };
   }
 
   // Relays WebRTC offer/answer/ICE, only between peers of the same room.
