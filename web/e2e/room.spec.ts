@@ -43,11 +43,15 @@ test('two people join, chat and watch a shared screen', async ({ browser }) => {
   await bia.locator('#file').setInputFiles({ name: 'dot.png', mimeType: 'image/png', buffer: png });
   await expect(ana.locator('#messages img.msg-media')).toHaveJSProperty('naturalWidth', 1);
 
+  // Discarding sends nothing; send confirms the recording.
   await bia.getByRole('button', { name: 'Gravar áudio' }).click();
-  await expect(bia.getByLabel('Mensagem')).toHaveAttribute('placeholder', /Gravando/);
+  await bia.getByRole('button', { name: 'Descartar áudio' }).click();
+  await bia.getByRole('button', { name: 'Gravar áudio' }).click();
+  await expect(bia.getByRole('timer')).toBeVisible();
   await bia.waitForTimeout(1000);
-  await bia.getByRole('button', { name: 'Parar e enviar áudio' }).click();
-  await expect(ana.locator('#messages audio.msg-media')).toHaveCount(1);
+  await bia.getByRole('button', { name: 'Enviar', exact: true }).click();
+  await expect(ana.locator('#messages .player')).toHaveCount(1);
+  await expect(ana.locator('#messages .player .time')).not.toHaveText('0:00');
 
   await ana.getByRole('button', { name: 'Compartilhar tela' }).click();
   await expect(bia.locator('#stage')).toHaveClass(/is-live/, { timeout: 15_000 });

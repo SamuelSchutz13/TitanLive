@@ -157,7 +157,7 @@ async function enterRoom(roomId: string, name: string) {
 function leaveRoom() {
   stopRecording(false);
   room?.leave();
-  for (const el of media.values()) URL.revokeObjectURL(el.src);
+  for (const { url } of media.values()) URL.revokeObjectURL(url);
   media.clear();
   room = null;
   speaking.stop();
@@ -192,6 +192,7 @@ const chatForm = $<HTMLFormElement>('chat-form');
 const msgInput = $<HTMLInputElement>('msg');
 chatForm.addEventListener('submit', async (e) => {
   e.preventDefault();
+  if (recorder) return stopRecording(true);
   const text = msgInput.value.trim();
   if (!text || !room) return;
   msgInput.value = '';
@@ -219,20 +220,14 @@ fileInput.addEventListener('change', () => {
   if (file) void sendFile(file);
 });
 
-// Voice notes: click to record, click again to send. A separate mic stream so muting the call doesn't silence it.
+const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+
+// Voice notes: the mic starts recording, then send confirms and the trash discards.
+// A separate mic stream so muting the call doesn't silence it.
 const recordBtn = $<HTMLButtonElement>('record');
+const recTime = $('rec-time');
 let recorder: MediaRecorder | null = null;
 let recordTimer = 0;
-function renderRecord() {
-  const on = !!recorder;
-  recordBtn.innerHTML = on ? icons.stop : icons.mic;
-  recordBtn.classList.toggle('is-recording', on);
-  recordBtn.dataset.i18nAria = on ? 'stopRecord' : 'record';
-  recordBtn.setAttribute('aria-label', t(recordBtn.dataset.i18nAria as Key));
-  recordBtn.title = recordBtn.getAttribute('aria-label')!;
-  msgInput.disabled = on;
-  if (!on) msgInput.placeholder = '';
-}
 function stopRecording(send: boolean) {
   if (!recorder) return;
   const r = recorder;
@@ -241,10 +236,9 @@ function stopRecording(send: boolean) {
   if (!send) r.ondataavailable = null;
   r.stop();
   r.stream.getTracks().forEach((tr) => tr.stop());
-  renderRecord();
+  chatForm.classList.remove('is-recording');
 }
 recordBtn.addEventListener('click', async () => {
-  if (recorder) return stopRecording(true);
   roomError.textContent = '';
   const stream = await navigator.mediaDevices.getUserMedia({ audio: true }).catch(() => null);
   if (!stream) return showError(roomError, 'record');
@@ -255,29 +249,74 @@ recordBtn.addEventListener('click', async () => {
     void sendFile(new File([e.data], `voice.${type.split('/')[1]}`, { type }));
   };
   const started = Date.now();
-  recordTimer = window.setInterval(() => {
-    const s = Math.floor((Date.now() - started) / 1000);
-    msgInput.placeholder = t('recording', { time: `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` });
-  }, 250);
+  recTime.textContent = clock(0);
+  recordTimer = window.setInterval(() => (recTime.textContent = clock((Date.now() - started) / 1000)), 250);
   recorder = r;
   r.start();
-  renderRecord();
+  chatForm.classList.add('is-recording');
 });
-renderRecord();
+$('rec-cancel').addEventListener('click', () => stopRecording(false));
 
-// Built once per message so a playing video survives re-renders.
-const media = new Map<ChatMessage, HTMLImageElement | HTMLMediaElement>();
+// Our own audio player: play/pause, a seekable bar and the time, in the chat's look.
+function audioPlayer(src: string) {
+  const audio = new Audio(src);
+  audio.preload = 'metadata';
+  const box = document.createElement('div');
+  box.className = 'player';
+  const play = document.createElement('button');
+  play.type = 'button';
+  play.className = 'icon-btn play';
+  const bar = document.createElement('div');
+  bar.className = 'bar';
+  const fill = document.createElement('div');
+  fill.className = 'fill';
+  bar.append(fill);
+  const time = document.createElement('span');
+  time.className = 'time';
+  box.append(play, bar, time, audio);
+  const update = () => {
+    const d = Number.isFinite(audio.duration) ? audio.duration : 0;
+    fill.style.width = d ? `${(audio.currentTime / d) * 100}%` : '0';
+    time.textContent = clock(audio.paused && !audio.currentTime ? d : audio.currentTime);
+    play.innerHTML = audio.paused ? icons.play : icons.pause;
+    play.setAttribute('aria-label', t(audio.paused ? 'play' : 'pause'));
+  };
+  // MediaRecorder webm has no duration until the end is read: seek far once to learn it.
+  audio.addEventListener('loadedmetadata', () => {
+    if (audio.duration !== Infinity) return update();
+    audio.currentTime = 1e9;
+    audio.addEventListener('timeupdate', () => ((audio.currentTime = 0), update()), { once: true });
+  });
+  for (const ev of ['timeupdate', 'play', 'pause', 'ended', 'durationchange']) audio.addEventListener(ev, update);
+  play.addEventListener('click', () => void (audio.paused ? audio.play() : audio.pause()));
+  bar.addEventListener('click', (e) => {
+    const r = bar.getBoundingClientRect();
+    if (Number.isFinite(audio.duration)) audio.currentTime = ((e.clientX - r.left) / r.width) * audio.duration;
+  });
+  update();
+  return box;
+}
+
+// Built once per message so a playing video or audio survives re-renders.
+const media = new Map<ChatMessage, { el: HTMLElement; url: string }>();
 function mediaFor(m: ChatMessage, file: NonNullable<ChatMessage['file']>) {
-  let el = media.get(m);
-  if (!el) {
+  let entry = media.get(m);
+  if (!entry) {
+    const url = URL.createObjectURL(new Blob([file.data], { type: file.type }));
     const kind = file.type.split('/')[0];
-    el = kind === 'image' ? new Image() : document.createElement(kind === 'video' ? 'video' : 'audio');
-    if (el instanceof HTMLMediaElement) el.controls = true;
-    el.className = 'msg-media';
-    el.src = URL.createObjectURL(new Blob([file.data], { type: file.type }));
-    media.set(m, el);
+    let el: HTMLElement;
+    if (kind === 'audio') el = audioPlayer(url);
+    else {
+      const v = kind === 'image' ? new Image() : document.createElement('video');
+      if (v instanceof HTMLVideoElement) v.controls = true;
+      v.src = url;
+      el = v;
+    }
+    el.classList.add('msg-media');
+    entry = { el, url };
+    media.set(m, entry);
   }
-  return el;
+  return entry.el;
 }
 
 const hue = (id: string) => [...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
