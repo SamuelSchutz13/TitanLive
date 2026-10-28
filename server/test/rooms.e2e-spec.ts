@@ -44,8 +44,12 @@ describe('RoomsGateway (e2e)', () => {
       roomId: 'room-123',
       name: 'Bia',
     });
-    expect(second.peers).toEqual([{ id: first.id, name: 'Ana' }]);
-    expect(await joined).toEqual({ id: second.id, name: 'Bia' });
+    expect(second.peers).toEqual([{ id: first.id, name: 'Ana', muted: false }]);
+    expect(await joined).toEqual({
+      id: second.id,
+      name: 'Bia',
+      muted: false,
+    });
 
     const sig = once(b, 'signal');
     await send(a, 'signal', { to: second.id, data: { sdp: 'x' } });
@@ -121,6 +125,32 @@ describe('RoomsGateway (e2e)', () => {
         name: 'late',
       }),
     ).toEqual({ error: 'room-full' });
+  });
+
+  it('shares mute state and room size', async () => {
+    const a = connect();
+    const b = connect();
+    await send(a, 'join', { roomId: 'room-mute', name: 'Ana', muted: true });
+    const joined = once(a, 'peer-joined');
+    const second = (await send(b, 'join', {
+      roomId: 'room-mute',
+      name: 'Bia',
+    })) as Ack & { peers: { muted: boolean }[] };
+    expect(second.peers[0].muted).toBe(true);
+    expect(await joined).toMatchObject({ name: 'Bia', muted: false });
+
+    const muted = once(a, 'peer-muted');
+    await send(b, 'mute', { muted: true });
+    expect(await muted).toEqual({ id: second.id, muted: true });
+    expect(await send(b, 'mute', { muted: 'yes' })).toEqual({
+      error: 'invalid-mute',
+    });
+
+    expect(await (await fetch(`${url}/rooms/room-mute`)).json()).toEqual({
+      count: 2,
+      max: 10,
+    });
+    expect((await fetch(`${url}/rooms/x`)).status).toBe(400);
   });
 
   it('rate-limits chat bursts', async () => {

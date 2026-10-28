@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            server/package-lock.json
+            web/package-lock.json
+
+      - name: Server
+        working-directory: server
+        run: |
+          npm ci
+          npx tsc --noEmit -p .
+          npm test
+          npm run test:e2e
+
+      - name: Web build
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+
+      # Playwright starts the server and Vite itself (playwright.config.ts webServer).
+      - name: Web e2e
+        working-directory: web
+        run: |
+          npx playwright install --with-deps chromium
+          npm run test:e2e
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: web/test-results
+          retention-days: 7

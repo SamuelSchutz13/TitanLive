@@ -1,7 +1,7 @@
 import './style.css';
 import { detectLang, dicts, getLang, setLang, t, type Key, type Lang } from './i18n';
 import { flags, icons } from './icons';
-import { hasVideo, MAX_FILE, Room, type ChatMessage } from './room';
+import { hasVideo, MAX_FILE, Room, SERVER_URL, type ChatMessage } from './room';
 
 const ROOM_ID = /^[A-Za-z0-9_-]{6,64}$/;
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -115,6 +115,31 @@ homeForm.addEventListener('submit', (e) => {
   void enterRoom(roomId, name);
 });
 
+// Says how full a room is while you type its code, so "full" shows up before you try to join.
+const roomStatus = $('room-status');
+const joinBtn = $<HTMLButtonElement>('join-btn');
+let statusFor = '';
+async function checkRoom() {
+  const id = parseCode(codeInput.value);
+  if (id === statusFor) return;
+  statusFor = id;
+  roomStatus.textContent = '';
+  roomStatus.classList.remove('error');
+  joinBtn.disabled = false;
+  if (!ROOM_ID.test(id)) return;
+  const res = await fetch(`${SERVER_URL}/rooms/${id}`).then((r) => r.json() as Promise<{ count: number; max: number }>).catch(() => null);
+  if (!res || id !== statusFor || !res.count) return;
+  const full = res.count >= res.max;
+  roomStatus.textContent = full ? t('err-room-full') : t('roomMeta', { n: res.count });
+  roomStatus.classList.toggle('error', full);
+  joinBtn.disabled = full;
+}
+let checkTimer = 0;
+codeInput.addEventListener('input', () => {
+  clearTimeout(checkTimer);
+  checkTimer = window.setTimeout(checkRoom, 300);
+});
+
 /* ---------- room ---------- */
 
 const messages: ChatMessage[] = [];
@@ -140,6 +165,7 @@ async function enterRoom(roomId: string, name: string) {
     renderChat();
   };
   r.onError = (code) => showError(roomError, code);
+  r.onPresence = chime;
   roomError.textContent = '';
   location.hash = roomId;
   show('room');
@@ -188,6 +214,27 @@ $('copy').addEventListener('click', async () => {
   setTimeout(() => (label.textContent = t('copyLink')), 1500);
 });
 
+const fullBtn = $<HTMLButtonElement>('fullscreen');
+fullBtn.hidden = !document.fullscreenEnabled;
+function renderFull() {
+  const on = !!document.fullscreenElement;
+  fullBtn.innerHTML = on ? icons.minimize : icons.maximize;
+  fullBtn.dataset.i18nAria = on ? 'exitFullscreen' : 'fullscreen';
+  fullBtn.setAttribute('aria-label', t(fullBtn.dataset.i18nAria as Key));
+  fullBtn.title = fullBtn.getAttribute('aria-label')!;
+}
+fullBtn.addEventListener('click', () => void (document.fullscreenElement ? document.exitFullscreen() : $('stage').requestFullscreen()));
+document.addEventListener('fullscreenchange', renderFull);
+renderFull();
+
+// M toggles the mic, Esc drops a voice note. Never while typing.
+document.addEventListener('keydown', (e) => {
+  if (!room || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.key === 'Escape' && recorder) return stopRecording(false);
+  const typing = (e.target as HTMLElement).closest('input, textarea, [contenteditable]');
+  if (!typing && e.key.toLowerCase() === 'm') micBtn.click();
+});
+
 const chatForm = $<HTMLFormElement>('chat-form');
 const msgInput = $<HTMLInputElement>('msg');
 chatForm.addEventListener('submit', async (e) => {
@@ -220,6 +267,8 @@ fileInput.addEventListener('change', () => {
   if (file) void sendFile(file);
 });
 
+// Opus at browser defaults stays well under the 8 MB file cap for this long.
+const MAX_RECORD_S = 5 * 60;
 const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
 // Voice notes: the mic starts recording, then send confirms and the trash discards.
@@ -249,13 +298,25 @@ recordBtn.addEventListener('click', async () => {
     void sendFile(new File([e.data], `voice.${type.split('/')[1]}`, { type }));
   };
   const started = Date.now();
-  recTime.textContent = clock(0);
-  recordTimer = window.setInterval(() => (recTime.textContent = clock((Date.now() - started) / 1000)), 250);
+  recTime.textContent = `${clock(0)} / ${clock(MAX_RECORD_S)}`;
+  recordTimer = window.setInterval(() => {
+    const s = (Date.now() - started) / 1000;
+    recTime.textContent = `${clock(s)} / ${clock(MAX_RECORD_S)}`;
+    if (s >= MAX_RECORD_S) stopRecording(true);
+  }, 250);
   recorder = r;
   r.start();
   chatForm.classList.add('is-recording');
 });
 $('rec-cancel').addEventListener('click', () => stopRecording(false));
+
+const lightbox = $<HTMLDialogElement>('lightbox');
+function openLightbox(src: string) {
+  lightbox.querySelector('img')!.src = src;
+  lightbox.showModal();
+}
+// Any click closes it: on the image or the backdrop.
+lightbox.addEventListener('click', () => lightbox.close());
 
 // Our own audio player: play/pause, a seekable bar and the time, in the chat's look.
 function audioPlayer(src: string) {
@@ -277,7 +338,8 @@ function audioPlayer(src: string) {
   const update = () => {
     const d = Number.isFinite(audio.duration) ? audio.duration : 0;
     fill.style.width = d ? `${(audio.currentTime / d) * 100}%` : '0';
-    time.textContent = clock(audio.paused && !audio.currentTime ? d : audio.currentTime);
+    // Round the total up so a 0.9 s note reads 0:01, not 0:00.
+    time.textContent = clock(audio.paused && !audio.currentTime ? Math.ceil(d) : audio.currentTime);
     play.innerHTML = audio.paused ? icons.play : icons.pause;
     play.setAttribute('aria-label', t(audio.paused ? 'play' : 'pause'));
   };
@@ -308,6 +370,7 @@ function mediaFor(m: ChatMessage, file: NonNullable<ChatMessage['file']>) {
     if (kind === 'audio') el = audioPlayer(url);
     else {
       const v = kind === 'image' ? new Image() : document.createElement('video');
+      if (v instanceof HTMLImageElement) v.addEventListener('click', () => openLightbox(url));
       if (v instanceof HTMLVideoElement) v.controls = true;
       v.src = url;
       el = v;
@@ -384,7 +447,7 @@ function render() {
   micBtn.classList.toggle('is-off', !micLive);
   micBtn.dataset.i18nAria = micLive ? 'micOn' : 'micOff';
   micBtn.setAttribute('aria-label', t(micBtn.dataset.i18nAria as Key));
-  micBtn.title = micBtn.getAttribute('aria-label')!;
+  micBtn.title = `${micBtn.getAttribute('aria-label')!} (M)`;
   shareBtn.classList.toggle('is-on', !!r.screen);
   shareBtn.dataset.i18nAria = r.screen ? 'stopShare' : 'share';
   shareBtn.setAttribute('aria-label', t(shareBtn.dataset.i18nAria as Key));
@@ -399,7 +462,10 @@ function render() {
   if (r.screen) me.push('sharing');
   const rows = [personRow('me', r.name, me, r.myId)];
   for (const p of r.peers.values()) {
-    rows.push(personRow(p.id, p.name, remoteScreens.some((s) => s.peer === p) ? ['sharing'] : []));
+    const tags: Tag[] = [];
+    if (p.muted) tags.push('muted');
+    if (remoteScreens.some((s) => s.peer === p)) tags.push('sharing');
+    rows.push(personRow(p.id, p.name, tags));
   }
   people.replaceChildren(...rows);
 
@@ -463,7 +529,33 @@ function renderChat() {
   list.scrollTop = list.scrollHeight;
 }
 
+/* ---------- join / leave chime ---------- */
+
+let chimeCtx: AudioContext | null = null;
+// Two short notes: rising when someone joins, falling when someone leaves.
+function chime(kind: 'join' | 'leave') {
+  chimeCtx ??= new AudioContext();
+  const ctx = chimeCtx;
+  const notes = kind === 'join' ? [660, 880] : [880, 660];
+  notes.forEach((freq, i) => {
+    const at = ctx.currentTime + i * 0.12;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.0001, at);
+    gain.gain.exponentialRampToValueAtTime(0.08, at + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.18);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(at);
+    osc.stop(at + 0.2);
+  });
+}
+
 /* ---------- who is speaking ---------- */
+
+const stageSpeaking = $('stage-speaking');
+const stageSpeakingNames = $('stage-speaking-names');
+$('stage-speaking-icon').innerHTML = icons.mic;
 
 const speaking = (() => {
   let ctx: AudioContext | null = null;
@@ -475,11 +567,16 @@ const speaking = (() => {
       ctx ??= new AudioContext();
       void ctx.resume();
       timer = window.setInterval(() => {
+        const names: string[] = [];
         for (const [id, m] of meters) {
           m.analyser.getByteTimeDomainData(buf);
           const peak = buf.reduce((max, v) => Math.max(max, Math.abs(v - 128)), 0);
-          people.querySelector(`[data-id="${id}"]`)?.classList.toggle('speaking', peak > 12);
+          const talking = peak > 12 && !(id === 'me' && room?.muted);
+          people.querySelector(`[data-id="${id}"]`)?.classList.toggle('speaking', talking);
+          if (talking) names.push(id === 'me' ? t('you') : (room?.peers.get(id)?.name ?? ''));
         }
+        stageSpeaking.hidden = !names.length;
+        stageSpeakingNames.textContent = names.join(', ');
       }, 150);
     },
     watch(id: string, stream: MediaStream) {
@@ -495,6 +592,7 @@ const speaking = (() => {
     stop() {
       clearInterval(timer);
       meters.clear();
+      stageSpeaking.hidden = true;
     },
   };
 })();
@@ -504,6 +602,7 @@ const speaking = (() => {
 const fromHash = parseCode(location.hash);
 if (ROOM_ID.test(fromHash)) {
   codeInput.value = fromHash;
+  void checkRoom();
   (nameInput.value ? $('join-btn') : nameInput).focus();
 }
 show('home');
