@@ -1,7 +1,7 @@
 import './style.css';
 import { detectLang, dicts, getLang, setLang, t, type Key, type Lang } from './i18n';
 import { flags, icons } from './icons';
-import { hasVideo, Room, type ChatMessage } from './room';
+import { hasVideo, MAX_FILE, Room, type ChatMessage } from './room';
 
 const ROOM_ID = /^[A-Za-z0-9_-]{6,64}$/;
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -156,6 +156,8 @@ async function enterRoom(roomId: string, name: string) {
 
 function leaveRoom() {
   room?.leave();
+  for (const el of media.values()) URL.revokeObjectURL(el.src);
+  media.clear();
   room = null;
   speaking.stop();
   audioBox.replaceChildren();
@@ -200,6 +202,34 @@ chatForm.addEventListener('submit', async (e) => {
   }
 });
 
+const fileInput = $<HTMLInputElement>('file');
+$('attach').addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', async () => {
+  const file = fileInput.files?.[0];
+  fileInput.value = '';
+  if (!file || !room) return;
+  roomError.textContent = '';
+  if (!/^(image|video|audio)\//.test(file.type)) return showError(roomError, 'invalid-file');
+  if (file.size > MAX_FILE) return showError(roomError, 'file-too-big');
+  const ack = await room.sendFile(file);
+  if (ack.error) showError(roomError, ack.error);
+});
+
+// Built once per message so a playing video survives re-renders.
+const media = new Map<ChatMessage, HTMLImageElement | HTMLMediaElement>();
+function mediaFor(m: ChatMessage, file: NonNullable<ChatMessage['file']>) {
+  let el = media.get(m);
+  if (!el) {
+    const kind = file.type.split('/')[0];
+    el = kind === 'image' ? new Image() : document.createElement(kind === 'video' ? 'video' : 'audio');
+    if (el instanceof HTMLMediaElement) el.controls = true;
+    el.className = 'msg-media';
+    el.src = URL.createObjectURL(new Blob([file.data], { type: file.type }));
+    media.set(m, el);
+  }
+  return el;
+}
+
 const hue = (id: string) => [...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
 
 // Same initial and tint for a person in the list and in the chat.
@@ -212,17 +242,26 @@ function avatarFor(hueKey: string, name: string) {
   return avatar;
 }
 
-function personRow(id: string, name: string, meta: string[], hueKey = id) {
+type Tag = 'you' | 'muted' | 'sharing';
+const tagIcon: Partial<Record<Tag, string>> = { muted: icons.micOff, sharing: icons.screen };
+
+function personRow(id: string, name: string, tags: Tag[], hueKey = id) {
   const li = document.createElement('li');
   li.dataset.id = id;
   const avatar = avatarFor(hueKey, name);
   const label = document.createElement('span');
   label.className = 'who';
   label.textContent = name;
-  const sub = document.createElement('span');
-  sub.className = 'meta';
-  sub.textContent = meta.join(' · ');
-  label.append(sub);
+  const pills = document.createElement('span');
+  pills.className = 'pills';
+  for (const tag of tags) {
+    const pill = document.createElement('span');
+    pill.className = `pill pill-${tag}`;
+    pill.innerHTML = tagIcon[tag] ?? '';
+    pill.append(t(tag));
+    pills.append(pill);
+  }
+  if (tags.length) label.append(pills);
   li.append(avatar, label);
   return li;
 }
@@ -231,7 +270,24 @@ function render() {
   const r = room;
   if (!r) return;
   $('room-title').textContent = t('roomTitle', { code: r.roomId.slice(0, 6) });
-  $('room-meta').textContent = r.reconnecting ? t('reconnecting') : t('roomMeta', { n: r.peers.size + 1 });
+  const meta = $('room-meta');
+  const n = r.peers.size + 1;
+  if (r.reconnecting) meta.textContent = t('reconnecting');
+  else {
+    // Who is in the room at a glance: their avatars, then the count.
+    const stack = document.createElement('span');
+    stack.className = 'stack';
+    stack.setAttribute('aria-hidden', 'true');
+    stack.append(avatarFor(r.myId, r.name), ...[...r.peers.values()].map((p) => avatarFor(p.id, p.name)));
+    const count = document.createElement('span');
+    count.className = 'count';
+    count.setAttribute('aria-hidden', 'true');
+    count.textContent = `${n}/10`;
+    const label = document.createElement('span');
+    label.className = 'sr-only';
+    label.textContent = t('roomMeta', { n });
+    meta.replaceChildren(stack, count, label);
+  }
 
   // Icon shows the current state; the label says what a click does.
   const micLive = !!r.mic && !r.muted;
@@ -246,12 +302,12 @@ function render() {
     [...p.streams.values()].filter(hasVideo).map((s) => ({ peer: p, stream: s })),
   );
 
-  const me = [t('you')];
-  if (!micLive) me.push(t('muted'));
-  if (r.screen) me.push(t('sharing'));
+  const me: Tag[] = ['you'];
+  if (!micLive) me.push('muted');
+  if (r.screen) me.push('sharing');
   const rows = [personRow('me', r.name, me, r.myId)];
   for (const p of r.peers.values()) {
-    rows.push(personRow(p.id, p.name, remoteScreens.some((s) => s.peer === p) ? [t('sharing')] : []));
+    rows.push(personRow(p.id, p.name, remoteScreens.some((s) => s.peer === p) ? ['sharing'] : []));
   }
   people.replaceChildren(...rows);
 
@@ -299,10 +355,14 @@ function renderChat() {
       time.dateTime = new Date(m.at).toISOString();
       time.textContent = fmt.format(m.at);
       head.append(who, time);
-      const body = document.createElement('p');
-      body.textContent = m.text;
       const content = document.createElement('div');
-      content.append(head, body);
+      content.append(head);
+      if (m.text) {
+        const body = document.createElement('p');
+        body.textContent = m.text;
+        content.append(body);
+      }
+      if (m.file) content.append(mediaFor(m, m.file));
       li.append(avatarFor(m.from, m.name), content);
       return li;
     }),

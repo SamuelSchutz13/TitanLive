@@ -18,7 +18,11 @@ export interface ChatMessage {
   name: string;
   text: string;
   at: number;
+  file?: { type: string; data: ArrayBuffer };
 }
+
+// Matches the server's cap; bigger payloads would get the socket dropped.
+export const MAX_FILE = 8 * 1024 * 1024;
 
 type Signal = { description?: RTCSessionDescriptionInit; candidate?: RTCIceCandidateInit };
 // The server hands out STUN plus short-lived TURN credentials when it has TURN configured.
@@ -132,6 +136,11 @@ export class Room {
 
   sendChat(text: string) {
     return this.socket.emitWithAck('chat', { text }) as Promise<{ ok?: true; error?: string }>;
+  }
+
+  async sendFile(file: File) {
+    const data = await file.arrayBuffer();
+    return this.socket.emitWithAck('chat', { file: { type: file.type, data } }) as Promise<{ ok?: true; error?: string }>;
   }
 
   leave() {

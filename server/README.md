@@ -16,17 +16,17 @@ Swagger em http://localhost:3000/docs (`GET /health` + resumo dos eventos Socket
 |---|---|---|
 | `join` | `{ roomId, name }` | `{ id, peers: [{id,name}], iceServers }` ou `{ error }` |
 | `signal` | `{ to, data }` | `{ ok }` ou `{ error }` |
-| `chat` | `{ text }` | `{ ok }` ou `{ error }` |
+| `chat` | `{ text }` ou `{ file: { type, data } }` | `{ ok }` ou `{ error }` |
 
 | Servidor → cliente | Payload |
 |---|---|
 | `peer-joined` | `{ id, name }` |
 | `peer-left` | `{ id }` |
 | `signal` | `{ from, data }` |
-| `chat` | `{ from, name, text, at }` |
+| `chat` | `{ from, name, text, at, file? }` |
 
-Regras: `roomId` `[A-Za-z0-9_-]{6,64}` (gerado pelo cliente, aleatório = privado), nome até 32, chat até 500 (máx. 5 mensagens a cada 5 s por pessoa), máx. 10 por sala.
-Erros: `invalid-room`, `invalid-name`, `already-joined`, `room-full`, `invalid-peer`, `not-joined`, `invalid-text`, `rate-limited`.
+Regras: `roomId` `[A-Za-z0-9_-]{6,64}` (gerado pelo cliente, aleatório = privado), nome até 32, chat até 500 caracteres ou um arquivo `image/*`, `video/*` ou `audio/*` de até 8 MB repassado sem guardar (máx. 5 mensagens a cada 5 s por pessoa), máx. 10 por sala.
+Erros: `invalid-room`, `invalid-name`, `already-joined`, `room-full`, `invalid-peer`, `not-joined`, `invalid-text`, `invalid-file`, `file-too-big`, `rate-limited`.
 
 ## TURN
 
