@@ -37,9 +37,10 @@ test('two people join, chat and watch a shared screen', async ({ browser }) => {
   await expect(ana.locator('#people li')).toHaveCount(2);
   await expect(ana.locator('#room-meta')).toContainText('2 de 10');
 
-  await bia.getByLabel('Mensagem').fill('oi Ana');
+  await bia.getByLabel('Mensagem').fill('oi Ana, olha https://example.com/x?y=1');
   await bia.getByRole('button', { name: 'Enviar', exact: true }).click();
   await expect(ana.locator('#messages')).toContainText('oi Ana');
+  await expect(ana.locator('#messages a[href="https://example.com/x?y=1"]')).toHaveAttribute('target', '_blank');
 
   // 1x1 PNG
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64');
@@ -49,6 +50,14 @@ test('two people join, chat and watch a shared screen', async ({ browser }) => {
   await expect(ana.locator('#lightbox')).toHaveJSProperty('open', true);
   await ana.locator('#lightbox').click();
   await expect(ana.locator('#lightbox')).toHaveJSProperty('open', false);
+
+  // Pasting an image into the message box sends it too.
+  await bia.getByLabel('Mensagem').evaluate((input, b64) => {
+    const dt = new DataTransfer();
+    dt.items.add(new File([Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))], 'shot.png', { type: 'image/png' }));
+    input.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+  }, png.toString('base64'));
+  await expect(ana.locator('#messages img.msg-media')).toHaveCount(2);
 
   // Discarding sends nothing; send confirms the recording.
   await bia.getByRole('button', { name: 'Gravar áudio' }).click();
@@ -63,6 +72,9 @@ test('two people join, chat and watch a shared screen', async ({ browser }) => {
   await ana.getByRole('button', { name: 'Compartilhar tela' }).click();
   await expect(bia.locator('#stage')).toHaveClass(/is-live/, { timeout: 15_000 });
   await expect(bia.locator('#stage-label')).toHaveText('Tela de Ana');
+  // The sharer doesn't watch their own screen: that's the infinite mirror.
+  await expect(ana.locator('#stage-video')).toBeHidden();
+  await expect(ana.locator('.stage-self')).toBeVisible();
   await expect
     .poll(() => bia.locator('#stage-video').evaluate((v: HTMLVideoElement) => v.videoWidth))
     .toBeGreaterThan(0);
@@ -196,6 +208,9 @@ test('cameras, reactions, music mode and announcements', async ({ browser }) => 
   // A camera is a tile, not a shared screen.
   await ana.getByRole('button', { name: 'Ligar câmera' }).click();
   await expect(bia.locator('.cam figcaption')).toHaveText('Ana');
+  // Visible on its own, with nobody sharing a screen (regression: it used to be display:none).
+  await expect(bia.locator('.cam video')).toBeVisible();
+  await expect(ana.locator('.cam video')).toBeVisible();
   await expect
     .poll(() => bia.locator('.cam video').evaluate((v: HTMLVideoElement) => v.videoWidth))
     .toBeGreaterThan(0);

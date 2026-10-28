@@ -138,7 +138,8 @@ export class Room {
   }
 
   async startShare() {
-    const screen = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+    // Chrome hides this tab from the picker: sharing TitanLive inside TitanLive only makes a mirror.
+    const screen = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true, selfBrowserSurface: 'exclude' } as DisplayMediaStreamOptions);
     this.screen = screen;
     // Browser's own "stop sharing" bar ends the track.
     screen.getVideoTracks()[0].addEventListener('ended', () => this.stopShare());

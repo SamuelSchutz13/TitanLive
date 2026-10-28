@@ -162,7 +162,8 @@ async function enterRoom(roomId: string, name: string) {
   r.onChange = render;
   r.onChat = (m) => {
     messages.push(m);
-    renderChat();
+    if (document.hidden) setUnread(unread + 1);
+    renderChat(m.from === r.myId);
   };
   r.onError = (code) => showError(roomError, code);
   r.onPresence = (kind, name) => {
@@ -184,7 +185,15 @@ async function enterRoom(roomId: string, name: string) {
   }
 }
 
+let unread = 0;
+function setUnread(n: number) {
+  unread = n;
+  document.title = n ? `(${n}) TitanLive` : 'TitanLive';
+}
+document.addEventListener('visibilitychange', () => !document.hidden && setUnread(0));
+
 function leaveRoom() {
+  setUnread(0);
   tiles.clear();
   camsBox.replaceChildren();
   lastSharer = '';
@@ -307,6 +316,27 @@ async function sendFile(file: File) {
   const ack = await room.sendFile(file);
   if (ack.error) showError(roomError, ack.error);
 }
+// Paste a screenshot or drop files on the chat to send them, same checks as the clip.
+msgInput.addEventListener('paste', (e) => {
+  const files = [...(e.clipboardData?.files ?? [])];
+  if (!files.length) return;
+  e.preventDefault();
+  files.forEach((f) => void sendFile(f));
+});
+const chatPanel = $('chat-form').closest<HTMLElement>('.chat')!;
+chatPanel.addEventListener('dragover', (e) => {
+  if (!e.dataTransfer?.types.includes('Files')) return;
+  e.preventDefault();
+  chatPanel.classList.add('is-drop');
+});
+chatPanel.addEventListener('dragleave', (e) => {
+  if (!chatPanel.contains(e.relatedTarget as Node)) chatPanel.classList.remove('is-drop');
+});
+chatPanel.addEventListener('drop', (e) => {
+  e.preventDefault();
+  chatPanel.classList.remove('is-drop');
+  [...(e.dataTransfer?.files ?? [])].forEach((f) => void sendFile(f));
+});
 fileInput.addEventListener('change', () => {
   const file = fileInput.files?.[0];
   fileInput.value = '';
@@ -579,8 +609,11 @@ function render() {
   speaking.prune(new Set(['me', ...r.peers.keys()]));
 
   const stage = r.screen ? { name: r.name, stream: r.screen } : remoteScreens[0] && { name: remoteScreens[0].peer.name, stream: remoteScreens[0].stream };
-  if (stageVideo.srcObject !== (stage?.stream ?? null)) stageVideo.srcObject = stage?.stream ?? null;
+  // Your own screen isn't played back: capturing this tab or screen would show it inside itself, over and over.
+  const shown = r.screen ? null : (stage?.stream ?? null);
+  if (stageVideo.srcObject !== shown) stageVideo.srcObject = shown;
   $('stage').classList.toggle('is-live', !!stage);
+  $('stage').classList.toggle('is-self', !!r.screen);
   $('stage-label').textContent = stage ? t('stageLabel', { name: stage.name }) : '';
   // Say it when a screen appears or goes away, not on every render.
   const sharer = stage?.name ?? '';
@@ -600,8 +633,27 @@ function render() {
 
 const timeFmt = () => new Intl.DateTimeFormat(getLang(), { hour: '2-digit', minute: '2-digit' });
 
-function renderChat() {
+// Plain text with http(s) links turned into anchors; nothing else becomes markup.
+function linkify(text: string) {
+  const body = document.createElement('p');
+  for (const part of text.split(/(https?:\/\/[^\s<>"]+)/)) {
+    if (!/^https?:\/\//.test(part)) {
+      body.append(part);
+      continue;
+    }
+    const a = document.createElement('a');
+    a.href = a.textContent = part;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    body.append(a);
+  }
+  return body;
+}
+
+// Follows new messages only if you were already at the bottom, or the message is yours.
+function renderChat(mine = false) {
   const list = $('messages');
+  const atBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 40;
   const fmt = timeFmt();
   list.replaceChildren(
     ...messages.map((m) => {
@@ -616,18 +668,14 @@ function renderChat() {
       head.append(who, time);
       const content = document.createElement('div');
       content.append(head);
-      if (m.text) {
-        const body = document.createElement('p');
-        body.textContent = m.text;
-        content.append(body);
-      }
+      if (m.text) content.append(linkify(m.text));
       if (m.file) content.append(mediaFor(m, m.file));
       li.append(avatarFor(m.from, m.name), content);
       return li;
     }),
   );
   $('chat-empty').hidden = messages.length > 0;
-  list.scrollTop = list.scrollHeight;
+  if (atBottom || mine) list.scrollTop = list.scrollHeight;
 }
 
 /* ---------- join / leave chime ---------- */
